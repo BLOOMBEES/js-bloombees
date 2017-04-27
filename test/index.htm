@@ -49,7 +49,7 @@
 
     </style>
 </head>
-<body core-config='{"bloombeesAPI":"https://dev.bloombees.com/h/api","bloombeesWebKey":"testPage"}'
+<body core-config='{"bloombeesOauth":"http://localhost:9092/h/service/oauth","bloombeesAPI":"http://localhost:9092/h/api","bloombeesWebKey":"testPage"}'
       core-lang="en" core-localize='{"tag1":"Hello world"}'>
 <div id="loader" style="display: block"></div>
 <div id="app" class="container" style="display: none">
@@ -72,15 +72,18 @@
                 </ul>
                 <div id="areaLogin" style="display: none">
 
-                    <div class="nav navbar-nav navbar-right"><a href="javascript:auth('google')" class="btn btn-social-icon btn-google">
+
+                    <div class="nav navbar-nav navbar-right" >
+                        <a href="javascript:auth('google')" class="btn btn-social-icon btn-google">
                         <span class="fa fa-google"></span>
-                    </a>
+                        </a>
                         <a href="javascript:auth('facebook')" class="btn btn-social-icon btn-facebook">
                             <span class="fa fa-facebook"></span>
                         </a>
                         <a href="javascript:instagram('facebook')" class="btn btn-social-icon btn-instagram">
                             <span class="fa fa-instagram"></span>
-                        </a></div>
+                        </a>
+                    </div>
 
 
                     <form id="signin" class="navbar-form navbar-right" role="form">
@@ -120,24 +123,9 @@
     </div>
 
     <div id="authPage" class="jumbotron" style="display: none">
-        <a class="btn btn-social-icon btn-google">
-            <span class="fa fa-google"></span>
-        </a>
-        <a class="btn btn-social-icon btn-facebook">
-            <span class="fa fa-facebook"></span>
-        </a>
-        <a class="btn btn-social-icon btn-instagram">
-            <span class="fa fa-instagram"></span>
-        </a>
-        <a class="btn btn-social-icon btn-twitter">
-            <span class="fa fa-twitter"></span>
-        </a>
-        <a class="btn btn-social-icon btn-linkedin">
-            <span class="fa fa-linkedin"></span>
-        </a>
-        <a class="btn btn-social-icon btn-vk">
-            <span class="fa fa-vk"></span>
-        </a>
+        <div id="userSocialNetworks">
+        ...loading social networks
+        </div>
         <h1>Auth user</h1>
     </div>
 
@@ -145,13 +133,10 @@
         <div class="container">
             <p class="text-muted"> bloombeesAPI: <b id="bloombeesAPI"></b>
                 token: [<b id="token"></b>]
-                hash:[<b id="hash"></b>]</p>
+                hash:[<b id="hash"></b>] [<a href="javascript:initIterface();">r</a>]</p>
         </div>
     </footer>
 </div> <!-- /container -->
-
-
-
 
 
 <script src="/js/js-bloombees.js"></script>
@@ -193,9 +178,6 @@
         Core.dom.element('app').style.display = 'block';
     }
 
-
-
-
     Bloombees.debug = true;
     initIterface();
     function initIterface() {
@@ -203,6 +185,9 @@
         Bloombees.init(function() {
             if(oauth = Core.formParams('oauth')) {
                 Core.cookies.set('oauth',oauth);
+                window.close();
+            } if(oauthconnect = Core.formParams('oauthconnect')) {
+                Core.cookies.set('oauthconnect',oauthconnect);
                 window.close();
             } else {
                 // Show the server we are using
@@ -215,18 +200,52 @@
                     $('#homePage').hide();
                     $('#areaUser').show();
                     $('#authPage').show();
+                    Bloombees.getUserSocialNetworks(drawAuthSocialNetWorks);
                 } else {
                     $('#areaLogin').show();
                     $('#homePage').show();
                     $('#areaUser').hide();
                     $('#authPage').hide();
                 }
+
                 endLoading();
             }
 
         });
 
     }
+
+    function drawAuthSocialNetWorks(response) {
+        if(Bloombees.debug) console.log('drawAuthSocialNetWorks',response);
+        var socialnetworks = {google:{active:false},facebook:{active:false},instagram:{active:false},Twitter:{active:false},linkedin:{active:false},vk:{active:false}};
+
+        if(response.success) {
+            for(k in response.data.SocialNetworks) {
+                record = response.data.SocialNetworks[k];
+                socialnetworks[record.SocialNetwork_name.toLowerCase()] = {active:true,url:record.SocialNetwork_url,id:record.SocialNetwork_id};
+            }
+        }
+
+        Bloombees.data.set('socialNetWorksStatus',socialnetworks);
+
+        // Draw the output
+        var html_active = '<a href="javascript:connectSocialNetwork(\'%s\')" class="btn btn-social-icon btn-%s"><span class="fa fa-%s"></span></a> ';
+        var html_unactive = '<a href="javascript:connectSocialNetwork(\'%s\')" class="btn btn-social-icon btn-%s btn-default"><span class="fa fa-%s"></span></a> ';
+        var inject = '';
+        for(k in socialnetworks) {
+            var button = '';
+            if(socialnetworks[k].active) {
+                button = html_active.replace(/%s/g, k);
+            } else {
+                button = html_unactive.replace(/%s/g, k);
+            }
+            inject = inject + button;
+        }
+        $('#userSocialNetworks').html(inject);
+
+    }
+
+    // Javascript logout
     function logOut() {
         initLoading();
         Bloombees.logout(function(){
@@ -273,7 +292,7 @@
     function auth(social) {
         initLoading();
         $.oauthpopup({
-            path: 'https://dev.bloombees.com/h/service/oauth/'+social+'?ret=http://localhost:8001?oauth={id}',
+            path: Core.config.get('bloombeesOauth')+'/'+social+'?ret=http://localhost:8001?oauth={id}',
             callback: function()
             {
                 var oauth_id = Core.cookies.get('oauth');
@@ -294,6 +313,62 @@
 
             }
         });
+    }
+
+    // Connect or disconnect social networks
+    function connectSocialNetwork(social) {
+        var socialnetworks= Bloombees.data.get('socialNetWorksStatus');
+        if(typeof socialnetworks == 'undefined' || typeof socialnetworks[social] == undefined) {
+            Core.error.add('connectSocialNetwork','missing socialnetworks or '+social);
+            return;
+        }
+
+        // Url to connect
+        if(socialnetworks[social].active) {
+            if(confirm('Are you sure about disconnect '+social)) {
+                initLoading();
+                Bloombees.disconnectUserSocialNetwork(socialnetworks[social].id,function(response) {
+                    if(!response.success) {
+                        alertMsg('Error',response.errors[0],'type-warning');
+                    } else {
+                        $('#userSocialNetworks').html('...loading social networks');
+                        Bloombees.getUserSocialNetworks(drawAuthSocialNetWorks,true);
+                    }
+                    endLoading();
+                });
+            }
+
+        } else {
+            if(confirm('Are you sure about connect '+social)) {
+                initLoading();
+                $.oauthpopup({
+                    path: Core.config.get('bloombeesOauth')+'/'+social+'?ret=http://localhost:8001?oauthconnect={id}',
+                    callback: function()
+                    {
+                        var oauth_id = Core.cookies.get('oauthconnect');
+                        if(oauth_id) {
+                            console.log(oauth_id);
+                            Core.cookies.remove('oauthconnect');
+                            Bloombees.connectUserSocialNetwork(oauth_id,function(response) {
+                                if(!response.success) {
+                                    alertMsg('Error',response.errors[0],'type-warning');
+                                } else {
+                                    $('#userSocialNetworks').html('...loading social networks');
+                                    Bloombees.getUserSocialNetworks(drawAuthSocialNetWorks,true);
+                                }
+                                endLoading();
+                            });
+
+                            //do callback stuff
+                        } else {
+                            endLoading();
+                        }
+                    }
+                });
+
+            }
+        }
+
     }
 
 
