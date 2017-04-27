@@ -1,0 +1,11 @@
+{
+  "name": "bloombees/js-bloombees",
+  "keywords": ["bloombees", "sell", "buy", "share","facebook","framework", "javascript","cloudframwork"],
+  "description": "javascript framework to develop frontend applications connected with Bloombees",
+  "minimum-stability": "dev",
+  "license": "MIT",
+  "authors": [
+    { "name": "Héctor López", "email": "hl@cloudframework.io"},
+    { "name": "Adrian Martínez", "email": "am@cloudframework.io"}
+  ]
+}

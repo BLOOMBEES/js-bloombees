@@ -1,0 +1,32 @@
+{
+  "name": "js-bloombees",
+  "main": "js-bloombees.js",
+  "description": "A JS Core library to speed up app the development of bloombees integration",
+  "version": "1.0.1",
+  "authors": [
+    "Héctor López",
+    "Adrián Martínez"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "bloombees",
+    "js-bloombees",
+    "cloudframework",
+    "javasript",
+    "framework"
+  ],
+  "homepage": "https://github.com/BLOOMBEES/js-bloombees",
+  "ignore": [
+    ".*",
+    "*.md",
+    "*.json",
+    "node_modules",
+    "bower_components",
+    "test",
+    "src",
+    "LICENSE"
+  ],
+  "devDependencies": {
+    "js-cloudframework": "*"
+  }
+}
