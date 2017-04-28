@@ -5,7 +5,7 @@
  - [Node](https://nodejs.org/en/)
  - [Yarn](https://yarnpkg.com/)
 
-### Install/Update
+### Install/Update dev tools
 ```
 sudo npm i -g npm to update 
 sudo npm install -g bower
@@ -21,3 +21,8 @@ sudo npm install -g bower
 yarn testserver
 ```
 start testing :)
+
+## Bower install
+```
+bower install js-bloombees
+```
