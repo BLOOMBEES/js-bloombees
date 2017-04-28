@@ -217,7 +217,7 @@
 
     function drawAuthSocialNetWorks(response) {
         if(Bloombees.debug) console.log('drawAuthSocialNetWorks',response);
-        var socialnetworks = {google:{active:false},facebook:{active:false},instagram:{active:false},Twitter:{active:false},linkedin:{active:false},vk:{active:false}};
+        var socialnetworks = {google:{active:false},facebook:{active:false},instagram:{active:false},twitter:{active:false},linkedin:{active:false},vk:{active:false}};
 
         if(response.success) {
             for(k in response.data.SocialNetworks) {
