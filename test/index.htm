@@ -1,5 +1,9 @@
+
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
     <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
@@ -49,10 +53,10 @@
 
     </style>
 </head>
-<body core-config='{"bloombeesOauth":"http://localhost:9092/h/service/oauth","bloombeesAPI":"http://localhost:9092/h/api","bloombeesWebKey":"testPage"}'
+<body core-config='{"bloombeesOauth":"https://bloombees.com/h/service/oauth","bloombeesAPI":"https://bloombees.com/h/api","bloombeesWebKey":"testPage"}'
       core-lang="en" core-localize='{"tag1":"Hello world"}'>
-<div id="loader" style="display: block"></div>
-<div id="app" class="container" style="display: none">
+<div id="loader" style="display: block" data-bind="visible: initLoading()"></div>
+<div id="app" class="container" style="display: none"  data-bind="visible: !initLoading()">
     <!-- Static navbar -->
     <nav class="navbar navbar-default">
 
@@ -64,49 +68,51 @@
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                 </button>
-                <a class="navbar-brand" href="https://bloombees.com">Bloombees</a>
+
+                <div data-bind="visible: !isAuth()" class="navbar-brand">
+                    <div>
+                        <a href="javascript:signInViaOauth('google')" class="btn btn-social-icon btn-google">
+                            <span class="fa fa-google"></span>
+                        </a>
+                        <a href="javascript:signInViaOauth('facebook')" class="btn btn-social-icon btn-facebook">
+                            <span class="fa fa-facebook"></span>
+                        </a>
+                        <a href="javascript:signInViaOauth('instagram')" class="btn btn-social-icon btn-instagram">
+                            <span class="fa fa-instagram"></span>
+                        </a>
+                    </div>
+                </div>
+                <div id="areaUserName" class="navbar-brand" data-bind="visible: isAuth()" >
+                    <div data-bind="with: userData"><span data-bind="text: Store_uniqueId">..loading data</span></div>
+                </div>
             </div>
             <div id="navbar" class="navbar-collapse collapse">
                 <ul class="nav navbar-nav">
                     <li class="active"><a href="#">js-bloombees</a></li>
                 </ul>
-                <div id="areaLogin" style="display: none">
-
-
-                    <div class="nav navbar-nav navbar-right" >
-                        <a href="javascript:auth('google')" class="btn btn-social-icon btn-google">
-                        <span class="fa fa-google"></span>
-                        </a>
-                        <a href="javascript:auth('facebook')" class="btn btn-social-icon btn-facebook">
-                            <span class="fa fa-facebook"></span>
-                        </a>
-                        <a href="javascript:instagram('facebook')" class="btn btn-social-icon btn-instagram">
-                            <span class="fa fa-instagram"></span>
-                        </a>
-                    </div>
-
+                <div id="areaLogin" style="display: none" data-bind="visible: !isAuth()" >
 
                     <form id="signin" class="navbar-form navbar-right" role="form">
                         <div class="form-group">
-                        <div class="input-group">
-                            <span class="input-group-addon"><i class="glyphicon glyphicon-user"></i></span>
-                            <input data-error="Bruh, that email address is invalid" required id="email" type="email" class="form-control" name="email" value="" placeholder="Email Address">
-                        </div>
+                            <div class="input-group">
+                                <span class="input-group-addon"><i class="glyphicon glyphicon-user"></i></span>
+                                <input data-error="Bruh, that email address is invalid" required id="email" type="email" class="form-control" name="email" data-bind="value: loginEmail" placeholder="Email Address">
+                            </div>
                         </div>
                         <div class="form-group">
-                        <div class="input-group">
-                            <span class="input-group-addon"><i class="glyphicon glyphicon-lock"></i></span>
-                            <input required id="password" type="password" class="form-control" name="password" value="" placeholder="Password">
-                        </div>
+                            <div class="input-group">
+                                <span class="input-group-addon"><i class="glyphicon glyphicon-lock"></i></span>
+                                <input required id="password" type="password" class="form-control" name="password" data-bind="value: loginPassword" placeholder="Password">
+                            </div>
                         </div>
 
                         <button type="submit" class="btn btn-primary">Login</button>
                     </form>
                 </div>
-                <div id="areaUser" style="display: none">
+                <div id="areaUser" style="display: none" data-bind="visible: isAuth()" >
                     <ul class="nav navbar-nav navbar-right">
                         <li ><a href="javascript:logOut();">[Logout]</a></span>
-                        </a></li>
+                        </li>
                     </ul>
                 </div>
             </div><!--/.nav-collapse -->
@@ -114,7 +120,7 @@
     </nav>
 
     <!-- Main component for a primary marketing message or call to action -->
-    <div id="homePage" class="jumbotron" style="display: none">
+    <div id="homePage" class="jumbotron" style="display: none" data-bind="visible: !isAuth()" >
         <h1>js-bloombes</h1>
         <p>This example is a quick exercise to illustrate how js-bloombees is used.</p>
         <p>
@@ -122,177 +128,52 @@
         </p>
     </div>
 
-    <div id="authPage" class="jumbotron" style="display: none">
-        <div id="userSocialNetworks">
-        ...loading social networks
+    <div id="authPage" class="jumbotron" style="display: none" data-bind="visible: isAuth()" >
+        <div id="userSocialNetworks" data-bind="foreach: socialNetworks">
+            <a data-bind="attr: {href: 'javascript:connectSocialNetwork(\''+sn+'\')', class: 'btn btn-social-icon btn-'+sn+((active)?'':' btn-default') }" ><span data-bind="attr: {class: 'fa fa-'+sn}"></span></a>
         </div>
         <h1>Auth user</h1>
     </div>
 
     <footer class="footer">
         <div class="container">
-            <p class="text-muted"> bloombeesAPI: <b id="bloombeesAPI"></b>
-                token: [<b id="token"></b>]
-                hash:[<b id="hash"></b>] [<a href="javascript:initIterface();">r</a>]</p>
+            <p class="text-muted" data-bind="with: bottomData"> bloombeesAPI: <b data-bind="text: bloombeesAPI"></b>
+                bbtoken: [<b data-bind="text: bbtoken"></b>]
+                bbhash:[<b data-bind="text: bbhash"></b>] [<a href="javascript:vm.reset();">r</a>]</p>
         </div>
     </footer>
 </div> <!-- /container -->
 
 
-<script src="/js/js-bloombees.js"></script>
+<script src = "js/js-bloombees.js" _src="https://bloombees-googlestorage-7pxvh1vxhs.netdna-ssl.com/bloombees-public/static/js/js-bloombees.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.2/knockout-min.js" integrity="sha256-owX7sroiO/O1a7h3a4X29A1g3QgqdNvijRQ7V5TH45M=" crossorigin="anonymous"></script>
 <script>
 
-
-
-    function showUserTop() {
-
-        Core.dom.element('user').style.display = 'block';
-        Core.dom.element('login').style.display = 'none';
-    }
-
-    function showLogin() {
-        Core.dom.element('user').style.display = 'none';
-        Core.dom.element('login').style.display = 'block';
-    }
-
-    function logout() {
-
-    }
-
-
-    function alertMsg(title,msg,type) {
-        if(typeof type=='undefined') type = 'type-default';
-        BootstrapDialog.show({
-            title: title,
-            message: msg,
-            type: type
-        });
-    }
-
-    function initLoading() {
-        Core.dom.element('loader').style.display = 'block';
-        Core.dom.element('app').style.display = 'none';
-    }
-    function endLoading() {
-        Core.dom.element('loader').style.display = 'none';
-        Core.dom.element('app').style.display = 'block';
-    }
-
-    Bloombees.debug = true;
-    initIterface();
-    function initIterface() {
-        initLoading();
-        Bloombees.init(function() {
-            if(oauth = Core.formParams('oauth')) {
-                Core.cookies.set('oauth',oauth);
-                window.close();
-            } if(oauthconnect = Core.formParams('oauthconnect')) {
-                Core.cookies.set('oauthconnect',oauthconnect);
-                window.close();
-            } else {
-                // Show the server we are using
-                Core.dom.setHTML('bloombeesAPI',Bloombees.api);
-                Core.dom.setHTML('token',Bloombees.getToken());
-                Core.dom.setHTML('hash',Bloombees.getHash());
-
-                if(Bloombees.isAuth()) {
-                    $('#areaLogin').hide();
-                    $('#homePage').hide();
-                    $('#areaUser').show();
-                    $('#authPage').show();
-                    Bloombees.getUserSocialNetworks(drawAuthSocialNetWorks);
-                } else {
-                    $('#areaLogin').show();
-                    $('#homePage').show();
-                    $('#areaUser').hide();
-                    $('#authPage').hide();
-                }
-
-                endLoading();
-            }
-
-        });
-
-    }
-
-    function drawAuthSocialNetWorks(response) {
-        if(Bloombees.debug) console.log('drawAuthSocialNetWorks',response);
-        var socialnetworks = {google:{active:false},facebook:{active:false},instagram:{active:false},twitter:{active:false},linkedin:{active:false},vk:{active:false}};
-
-        if(response.success) {
-            for(k in response.data.SocialNetworks) {
-                record = response.data.SocialNetworks[k];
-                socialnetworks[record.SocialNetwork_name.toLowerCase()] = {active:true,url:record.SocialNetwork_url,id:record.SocialNetwork_id};
-            }
-        }
-
-        Bloombees.data.set('socialNetWorksStatus',socialnetworks);
-
-        // Draw the output
-        var html_active = '<a href="javascript:connectSocialNetwork(\'%s\')" class="btn btn-social-icon btn-%s"><span class="fa fa-%s"></span></a> ';
-        var html_unactive = '<a href="javascript:connectSocialNetwork(\'%s\')" class="btn btn-social-icon btn-%s btn-default"><span class="fa fa-%s"></span></a> ';
-        var inject = '';
-        for(k in socialnetworks) {
-            var button = '';
-            if(socialnetworks[k].active) {
-                button = html_active.replace(/%s/g, k);
-            } else {
-                button = html_unactive.replace(/%s/g, k);
-            }
-            inject = inject + button;
-        }
-        $('#userSocialNetworks').html(inject);
-
-    }
-
-    // Javascript logout
-    function logOut() {
-        initLoading();
-        Bloombees.logout(function(){
-            initIterface();
-        });
-    }
-
-    // Signin module
+    // Signin module using Jquery.validator
     $('#signin').validator().on('submit', function (e) {
-
         if (e.isDefaultPrevented()) {
             // handle the invalid form...
         } else {
-            initLoading();
-            Bloombees.login({email:$('#email').val(),password:$('#password').val()},function(response) {
-                if(response.success) {
-                    initIterface();
-                } else {
+            vm.initLoading(true);
+            Bloombees.login({email:vm.loginEmail(),password:vm.loginPassword()},function(response) {
+                if(!response.success) {
+                    vm.reset();
                     alertMsg('Error','User does not exist','type-warning');
-                    initIterface();
+                } else {
+                    Core.bind([readConnectedSocialNetworks],function() {
+                        vm.reset();
+                    });
                 }
             });
-
             return false;
         }
     });
 
-    $.oauthpopup = function(options)
-    {
-        options.windowName = options.windowName ||  'ConnectWithOAuth'; // should not include space for IE
-        options.windowOptions = options.windowOptions || 'location=0,status=0,width=800,height=400';
-        options.callback = options.callback || function(){ window.location.reload(); };
-        var that = this;
-        console.log(options.path);
-        that._oauthWindow = window.open(options.path, options.windowName, options.windowOptions);
-        that._oauthInterval = window.setInterval(function(){
-            if (that._oauthWindow.closed) {
-                window.clearInterval(that._oauthInterval);
-                options.callback();
-            }
-        }, 1000);
-    };
-
-    function auth(social) {
-        initLoading();
-        $.oauthpopup({
-            path: Core.config.get('bloombeesOauth')+'/'+social+'?ret=http://localhost:8001?oauth={id}',
+    // Get socialnetworks
+    function signInViaOauth(social) {
+        vm.initLoading(true);
+        Core.oauthpopup({
+            path: Core.config.get('bloombeesOauth')+'/'+social+'?ret='+Core.url.parts('origin')+Core.url.parts('pathname')+'?oauth={id}',
             callback: function()
             {
                 var oauth_id = Core.cookies.get('oauth');
@@ -301,67 +182,81 @@
                     Core.cookies.remove('oauth');
                     Bloombees.oauth(oauth_id,function(response) {
                         if(!response.success) {
-                            alertMsg('Error',response.errors[0],'type-warning');
+                            alertMsg('Error',JSON.stringify(response.errors),'type-warning');
+                            vm.reset();
+                        } else {
+                            Core.bind([readConnectedSocialNetworks],function() {
+                                vm.reset();
+                            });
                         }
-                        initIterface();
                     });
 
                     //do callback stuff
                 } else {
-                    endLoading();
+                    vm.reset();
                 }
-
             }
         });
     }
 
-    // Connect or disconnect social networks
+    // Javascript logout
+    function logOut() {
+        vm.initLoading(true);
+        Bloombees.logout(function(){
+            vm.reset();
+        });
+    }
+
+    // Connect or disconnect social networks for an Authenticated user.
     function connectSocialNetwork(social) {
-        var socialnetworks= Bloombees.data.get('socialNetWorksStatus');
+        var socialnetworks= vm.availableSocialNetWorks;
         if(typeof socialnetworks == 'undefined' || typeof socialnetworks[social] == undefined) {
-            Core.error.add('connectSocialNetwork','missing socialnetworks or '+social);
+            Core.error.add('connectedSocialNetworks','missing socialnetworks or '+social);
             return;
         }
-
         // Url to connect
         if(socialnetworks[social].active) {
             if(confirm('Are you sure about disconnect '+social)) {
-                initLoading();
+                vm.initLoading(true);
+                if(Bloombees.debug) Core.log.printDebug("connectSocialNetwork: disconnecting "+social+': '+socialnetworks[social].id);
                 Bloombees.disconnectUserSocialNetwork(socialnetworks[social].id,function(response) {
                     if(!response.success) {
                         alertMsg('Error',response.errors[0],'type-warning');
+                        vm.reset();
                     } else {
-                        $('#userSocialNetworks').html('...loading social networks');
-                        Bloombees.getUserSocialNetworks(drawAuthSocialNetWorks,true);
+                        Core.bind([readConnectedSocialNetworks],function() {
+                            vm.reset();
+                        });
                     }
-                    endLoading();
                 });
             }
 
         } else {
             if(confirm('Are you sure about connect '+social)) {
-                initLoading();
-                $.oauthpopup({
-                    path: Core.config.get('bloombeesOauth')+'/'+social+'?ret=http://localhost:8001?oauthconnect={id}',
+                vm.initLoading(true);
+                Core.oauthpopup({
+                    path: Core.config.get('bloombeesOauth')+'/'+social+'?ret='+Core.url.parts('origin')+Core.url.parts('pathname')+'?oauthconnect={id}',
                     callback: function()
                     {
                         var oauth_id = Core.cookies.get('oauthconnect');
                         if(oauth_id) {
                             console.log(oauth_id);
                             Core.cookies.remove('oauthconnect');
+                            if(Bloombees.debug) Core.log.printDebug("connectSocialNetwork: connecting "+social+': '+oauth_id);
                             Bloombees.connectUserSocialNetwork(oauth_id,function(response) {
                                 if(!response.success) {
                                     alertMsg('Error',response.errors[0],'type-warning');
+                                    vm.reset();
                                 } else {
-                                    $('#userSocialNetworks').html('...loading social networks');
-                                    Bloombees.getUserSocialNetworks(drawAuthSocialNetWorks,true);
+                                    Core.bind([readConnectedSocialNetworks],function() {
+                                        vm.reset();
+                                    });
                                 }
-                                endLoading();
                             });
 
                             //do callback stuff
                         } else {
-                            endLoading();
+                            vm.reset();
                         }
                     }
                 });
@@ -371,8 +266,129 @@
 
     }
 
+    // Read Connected social networks associated to an user. The result will be stored in: Core.data.set('connectedSocialNetworks',..);
+    function readConnectedSocialNetworks(resolve,reject) {
+        Core.data.set('connectedSocialNetworks',[]);
+        if(Core.user.isAuth()) {
+            // Read
+            Bloombees.getUserSocialNetworks(function(response) {
+                if(response.success) {
+                    Core.data.set('connectedSocialNetworks',response.data.SocialNetworks);
+                    if(Bloombees.debug) Core.log.printDebug("Core.data.set('connectedSocialNetworks',response.data.SocialNetworks) executed");
+                }
+                resolve();
+            },true);
+        } else {
+            resolve();
+        }
+    }
+
+    // Alert Helper
+    function alertMsg(title,msg,type) {
+        if(typeof type=='undefined') type = 'type-default';
+        BootstrapDialog.show({
+            title: title,
+            message: msg,
+            type: type
+        });
+    }
+    // VIEW MODEL FOR THE PAGE.
+    var BloombeesModel = function () {
+        var self = this;
+        self.init = false;
+        self.initLoading = ko.observable(true);
+        self.isAuth = ko.observable(Bloombees.isAuth());
+        self.userData = ko.observable({Store_uniqueId: Core.user.info['Store_uniqueId']});
+
+
+        // About social networks
+
+
+        // -- DRAW Social Networks.
+        // Transform and update socialNetworks based on Core.data.et('connectedSocialNetworks')
+        self.socialNetworks = ko.observable([]);
+        self.availableSocialNetWorks = {google:{active:false,id:null},facebook:{active:false,id:null},instagram:{active:false,id:null},twitter:{active:false,id:null},pinterest:{active:false,id:null},linkedin:{active:false,id:null},vk:{active:false,id:null}};
+
+        self.drawSocialNetworksConnected = function() {
+
+            // Reset in each call
+            for (k in self.availableSocialNetWorks) {
+                self.availableSocialNetWorks[k].active = false;
+                self.availableSocialNetWorks[k].id = null;
+            }
+
+            // See current connected SocialNetworks
+            var connectedSocialNetworks = Core.data.get('connectedSocialNetworks');
+            if(Core.user.isAuth() && typeof connectedSocialNetworks =='object' && connectedSocialNetworks.length) {
+                // loop all the social networks to update it.
+                for(k in connectedSocialNetworks) {
+                    sn = connectedSocialNetworks[k].SocialNetwork_name.toLowerCase();
+                    id = connectedSocialNetworks[k].SocialNetwork_id;
+                    if(typeof self.availableSocialNetWorks[sn] != 'undefined') {
+                        self.availableSocialNetWorks[sn].active = true;
+                        self.availableSocialNetWorks[sn].id = id;
+                    }
+                }
+            } else {
+                Core.error.add('BloombeesModel.socialNetworksConnected: Error of programing. This condition should not happen');
+            }
+
+            // Transform data to be printed
+            snArray = [];
+            for(k in self.availableSocialNetWorks) {
+                snArray.push({sn:k,active:self.availableSocialNetWorks[k].active})
+            }
+            self.socialNetworks(snArray);
+
+        }
+
+        self.bottomData = ko.observable({ bloombeesAPI: Core.config.get('bloombeesAPI'), bbtoken: Core.user.getCookieValue(), bbhash: Core.cookies.get(Bloombees.cookieNameForHash)});
+        // Reset all the components based on the values
+        self.reset = function() {
+            self.isAuth(Bloombees.isAuth());
+            self.userData({Store_uniqueId: Core.user.info['Store_uniqueId']});
+            self.bottomData({bloombeesAPI: Core.config.get('bloombeesAPI'),bbtoken:Core.user.getCookieValue(),bbhash:Core.cookies.get(Bloombees.cookieNameForHash)});
+            self.drawSocialNetworksConnected();
+            self.initLoading(false);
+        }
+
+        // Login/password
+        self.loginEmail = ko.observable();
+        self.loginPassword = ko.observable();
+
+    };
+    var vm = null; //ViewModel for the app
+
+    Bloombees.debug = true;
+    // Control of auth
+    if(oauth = Core.url.formParams('oauth')) {
+        window.focus();
+        Core.cookies.set('oauth',oauth);
+        window.close();
+    } if(oauthconnect = Core.url.formParams('oauthconnect')) {
+        window.focus();
+        Core.cookies.set('oauthconnect',oauthconnect);
+        window.close();
+    } else {
+        Bloombees.init(function () {
+            Core.bind([readConnectedSocialNetworks], function () {
+                // Do the binds
+                try {
+                    vm = new BloombeesModel();
+                    ko.applyBindings(vm);
+                    if (Core.user.isAuth()) vm.drawSocialNetworksConnected();
+
+                    vm.initLoading(false);
+
+                } catch (err) {
+                    console.log(err);
+                }
+            });
+        });
+    }
+
+
 
 </script>
 </body>
 </html>
-

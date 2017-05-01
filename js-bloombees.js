@@ -164,468 +164,6 @@
 	return init(function () {});
 }));
 
-(function(self) {
-  'use strict';
-
-  if (self.fetch) {
-    return
-  }
-
-  var support = {
-    searchParams: 'URLSearchParams' in self,
-    iterable: 'Symbol' in self && 'iterator' in Symbol,
-    blob: 'FileReader' in self && 'Blob' in self && (function() {
-      try {
-        new Blob()
-        return true
-      } catch(e) {
-        return false
-      }
-    })(),
-    formData: 'FormData' in self,
-    arrayBuffer: 'ArrayBuffer' in self
-  }
-
-  if (support.arrayBuffer) {
-    var viewClasses = [
-      '[object Int8Array]',
-      '[object Uint8Array]',
-      '[object Uint8ClampedArray]',
-      '[object Int16Array]',
-      '[object Uint16Array]',
-      '[object Int32Array]',
-      '[object Uint32Array]',
-      '[object Float32Array]',
-      '[object Float64Array]'
-    ]
-
-    var isDataView = function(obj) {
-      return obj && DataView.prototype.isPrototypeOf(obj)
-    }
-
-    var isArrayBufferView = ArrayBuffer.isView || function(obj) {
-      return obj && viewClasses.indexOf(Object.prototype.toString.call(obj)) > -1
-    }
-  }
-
-  function normalizeName(name) {
-    if (typeof name !== 'string') {
-      name = String(name)
-    }
-    if (/[^a-z0-9\-#$%&'*+.\^_`|~]/i.test(name)) {
-      throw new TypeError('Invalid character in header field name')
-    }
-    return name.toLowerCase()
-  }
-
-  function normalizeValue(value) {
-    if (typeof value !== 'string') {
-      value = String(value)
-    }
-    return value
-  }
-
-  // Build a destructive iterator for the value list
-  function iteratorFor(items) {
-    var iterator = {
-      next: function() {
-        var value = items.shift()
-        return {done: value === undefined, value: value}
-      }
-    }
-
-    if (support.iterable) {
-      iterator[Symbol.iterator] = function() {
-        return iterator
-      }
-    }
-
-    return iterator
-  }
-
-  function Headers(headers) {
-    this.map = {}
-
-    if (headers instanceof Headers) {
-      headers.forEach(function(value, name) {
-        this.append(name, value)
-      }, this)
-    } else if (Array.isArray(headers)) {
-      headers.forEach(function(header) {
-        this.append(header[0], header[1])
-      }, this)
-    } else if (headers) {
-      Object.getOwnPropertyNames(headers).forEach(function(name) {
-        this.append(name, headers[name])
-      }, this)
-    }
-  }
-
-  Headers.prototype.append = function(name, value) {
-    name = normalizeName(name)
-    value = normalizeValue(value)
-    var oldValue = this.map[name]
-    this.map[name] = oldValue ? oldValue+','+value : value
-  }
-
-  Headers.prototype['delete'] = function(name) {
-    delete this.map[normalizeName(name)]
-  }
-
-  Headers.prototype.get = function(name) {
-    name = normalizeName(name)
-    return this.has(name) ? this.map[name] : null
-  }
-
-  Headers.prototype.has = function(name) {
-    return this.map.hasOwnProperty(normalizeName(name))
-  }
-
-  Headers.prototype.set = function(name, value) {
-    this.map[normalizeName(name)] = normalizeValue(value)
-  }
-
-  Headers.prototype.forEach = function(callback, thisArg) {
-    for (var name in this.map) {
-      if (this.map.hasOwnProperty(name)) {
-        callback.call(thisArg, this.map[name], name, this)
-      }
-    }
-  }
-
-  Headers.prototype.keys = function() {
-    var items = []
-    this.forEach(function(value, name) { items.push(name) })
-    return iteratorFor(items)
-  }
-
-  Headers.prototype.values = function() {
-    var items = []
-    this.forEach(function(value) { items.push(value) })
-    return iteratorFor(items)
-  }
-
-  Headers.prototype.entries = function() {
-    var items = []
-    this.forEach(function(value, name) { items.push([name, value]) })
-    return iteratorFor(items)
-  }
-
-  if (support.iterable) {
-    Headers.prototype[Symbol.iterator] = Headers.prototype.entries
-  }
-
-  function consumed(body) {
-    if (body.bodyUsed) {
-      return Promise.reject(new TypeError('Already read'))
-    }
-    body.bodyUsed = true
-  }
-
-  function fileReaderReady(reader) {
-    return new Promise(function(resolve, reject) {
-      reader.onload = function() {
-        resolve(reader.result)
-      }
-      reader.onerror = function() {
-        reject(reader.error)
-      }
-    })
-  }
-
-  function readBlobAsArrayBuffer(blob) {
-    var reader = new FileReader()
-    var promise = fileReaderReady(reader)
-    reader.readAsArrayBuffer(blob)
-    return promise
-  }
-
-  function readBlobAsText(blob) {
-    var reader = new FileReader()
-    var promise = fileReaderReady(reader)
-    reader.readAsText(blob)
-    return promise
-  }
-
-  function readArrayBufferAsText(buf) {
-    var view = new Uint8Array(buf)
-    var chars = new Array(view.length)
-
-    for (var i = 0; i < view.length; i++) {
-      chars[i] = String.fromCharCode(view[i])
-    }
-    return chars.join('')
-  }
-
-  function bufferClone(buf) {
-    if (buf.slice) {
-      return buf.slice(0)
-    } else {
-      var view = new Uint8Array(buf.byteLength)
-      view.set(new Uint8Array(buf))
-      return view.buffer
-    }
-  }
-
-  function Body() {
-    this.bodyUsed = false
-
-    this._initBody = function(body) {
-      this._bodyInit = body
-      if (!body) {
-        this._bodyText = ''
-      } else if (typeof body === 'string') {
-        this._bodyText = body
-      } else if (support.blob && Blob.prototype.isPrototypeOf(body)) {
-        this._bodyBlob = body
-      } else if (support.formData && FormData.prototype.isPrototypeOf(body)) {
-        this._bodyFormData = body
-      } else if (support.searchParams && URLSearchParams.prototype.isPrototypeOf(body)) {
-        this._bodyText = body.toString()
-      } else if (support.arrayBuffer && support.blob && isDataView(body)) {
-        this._bodyArrayBuffer = bufferClone(body.buffer)
-        // IE 10-11 can't handle a DataView body.
-        this._bodyInit = new Blob([this._bodyArrayBuffer])
-      } else if (support.arrayBuffer && (ArrayBuffer.prototype.isPrototypeOf(body) || isArrayBufferView(body))) {
-        this._bodyArrayBuffer = bufferClone(body)
-      } else {
-        throw new Error('unsupported BodyInit type')
-      }
-
-      if (!this.headers.get('content-type')) {
-        if (typeof body === 'string') {
-          this.headers.set('content-type', 'text/plain;charset=UTF-8')
-        } else if (this._bodyBlob && this._bodyBlob.type) {
-          this.headers.set('content-type', this._bodyBlob.type)
-        } else if (support.searchParams && URLSearchParams.prototype.isPrototypeOf(body)) {
-          this.headers.set('content-type', 'application/x-www-form-urlencoded;charset=UTF-8')
-        }
-      }
-    }
-
-    if (support.blob) {
-      this.blob = function() {
-        var rejected = consumed(this)
-        if (rejected) {
-          return rejected
-        }
-
-        if (this._bodyBlob) {
-          return Promise.resolve(this._bodyBlob)
-        } else if (this._bodyArrayBuffer) {
-          return Promise.resolve(new Blob([this._bodyArrayBuffer]))
-        } else if (this._bodyFormData) {
-          throw new Error('could not read FormData body as blob')
-        } else {
-          return Promise.resolve(new Blob([this._bodyText]))
-        }
-      }
-
-      this.arrayBuffer = function() {
-        if (this._bodyArrayBuffer) {
-          return consumed(this) || Promise.resolve(this._bodyArrayBuffer)
-        } else {
-          return this.blob().then(readBlobAsArrayBuffer)
-        }
-      }
-    }
-
-    this.text = function() {
-      var rejected = consumed(this)
-      if (rejected) {
-        return rejected
-      }
-
-      if (this._bodyBlob) {
-        return readBlobAsText(this._bodyBlob)
-      } else if (this._bodyArrayBuffer) {
-        return Promise.resolve(readArrayBufferAsText(this._bodyArrayBuffer))
-      } else if (this._bodyFormData) {
-        throw new Error('could not read FormData body as text')
-      } else {
-        return Promise.resolve(this._bodyText)
-      }
-    }
-
-    if (support.formData) {
-      this.formData = function() {
-        return this.text().then(decode)
-      }
-    }
-
-    this.json = function() {
-      return this.text().then(JSON.parse)
-    }
-
-    return this
-  }
-
-  // HTTP methods whose capitalization should be normalized
-  var methods = ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT']
-
-  function normalizeMethod(method) {
-    var upcased = method.toUpperCase()
-    return (methods.indexOf(upcased) > -1) ? upcased : method
-  }
-
-  function Request(input, options) {
-    options = options || {}
-    var body = options.body
-
-    if (input instanceof Request) {
-      if (input.bodyUsed) {
-        throw new TypeError('Already read')
-      }
-      this.url = input.url
-      this.credentials = input.credentials
-      if (!options.headers) {
-        this.headers = new Headers(input.headers)
-      }
-      this.method = input.method
-      this.mode = input.mode
-      if (!body && input._bodyInit != null) {
-        body = input._bodyInit
-        input.bodyUsed = true
-      }
-    } else {
-      this.url = String(input)
-    }
-
-    this.credentials = options.credentials || this.credentials || 'omit'
-    if (options.headers || !this.headers) {
-      this.headers = new Headers(options.headers)
-    }
-    this.method = normalizeMethod(options.method || this.method || 'GET')
-    this.mode = options.mode || this.mode || null
-    this.referrer = null
-
-    if ((this.method === 'GET' || this.method === 'HEAD') && body) {
-      throw new TypeError('Body not allowed for GET or HEAD requests')
-    }
-    this._initBody(body)
-  }
-
-  Request.prototype.clone = function() {
-    return new Request(this, { body: this._bodyInit })
-  }
-
-  function decode(body) {
-    var form = new FormData()
-    body.trim().split('&').forEach(function(bytes) {
-      if (bytes) {
-        var split = bytes.split('=')
-        var name = split.shift().replace(/\+/g, ' ')
-        var value = split.join('=').replace(/\+/g, ' ')
-        form.append(decodeURIComponent(name), decodeURIComponent(value))
-      }
-    })
-    return form
-  }
-
-  function parseHeaders(rawHeaders) {
-    var headers = new Headers()
-    rawHeaders.split(/\r?\n/).forEach(function(line) {
-      var parts = line.split(':')
-      var key = parts.shift().trim()
-      if (key) {
-        var value = parts.join(':').trim()
-        headers.append(key, value)
-      }
-    })
-    return headers
-  }
-
-  Body.call(Request.prototype)
-
-  function Response(bodyInit, options) {
-    if (!options) {
-      options = {}
-    }
-
-    this.type = 'default'
-    this.status = 'status' in options ? options.status : 200
-    this.ok = this.status >= 200 && this.status < 300
-    this.statusText = 'statusText' in options ? options.statusText : 'OK'
-    this.headers = new Headers(options.headers)
-    this.url = options.url || ''
-    this._initBody(bodyInit)
-  }
-
-  Body.call(Response.prototype)
-
-  Response.prototype.clone = function() {
-    return new Response(this._bodyInit, {
-      status: this.status,
-      statusText: this.statusText,
-      headers: new Headers(this.headers),
-      url: this.url
-    })
-  }
-
-  Response.error = function() {
-    var response = new Response(null, {status: 0, statusText: ''})
-    response.type = 'error'
-    return response
-  }
-
-  var redirectStatuses = [301, 302, 303, 307, 308]
-
-  Response.redirect = function(url, status) {
-    if (redirectStatuses.indexOf(status) === -1) {
-      throw new RangeError('Invalid status code')
-    }
-
-    return new Response(null, {status: status, headers: {location: url}})
-  }
-
-  self.Headers = Headers
-  self.Request = Request
-  self.Response = Response
-
-  self.fetch = function(input, init) {
-    return new Promise(function(resolve, reject) {
-      var request = new Request(input, init)
-      var xhr = new XMLHttpRequest()
-
-      xhr.onload = function() {
-        var options = {
-          status: xhr.status,
-          statusText: xhr.statusText,
-          headers: parseHeaders(xhr.getAllResponseHeaders() || '')
-        }
-        options.url = 'responseURL' in xhr ? xhr.responseURL : options.headers.get('X-Request-URL')
-        var body = 'response' in xhr ? xhr.response : xhr.responseText
-        resolve(new Response(body, options))
-      }
-
-      xhr.onerror = function() {
-        reject(new TypeError('Network request failed'))
-      }
-
-      xhr.ontimeout = function() {
-        reject(new TypeError('Network request failed'))
-      }
-
-      xhr.open(request.method, request.url, true)
-
-      if (request.credentials === 'include') {
-        xhr.withCredentials = true
-      }
-
-      if ('responseType' in xhr && support.blob) {
-        xhr.responseType = 'blob'
-      }
-
-      request.headers.forEach(function(value, name) {
-        xhr.setRequestHeader(name, value)
-      })
-
-      xhr.send(typeof request._bodyInit === 'undefined' ? null : request._bodyInit)
-    })
-  }
-  self.fetch.polyfill = true
-})(typeof self !== 'undefined' ? self : this);
-
 // Copyright (c) 2013 Pieroxy <pieroxy@pieroxy.net>
 // This work is free. You can redistribute it and/or modify it
 // under the terms of the WTFPL, Version 2
@@ -1128,46 +666,520 @@ if (typeof define === 'function' && define.amd) {
   module.exports = LZString
 }
 
+(function(self) {
+  'use strict';
+
+  if (self.fetch) {
+    return
+  }
+
+  var support = {
+    searchParams: 'URLSearchParams' in self,
+    iterable: 'Symbol' in self && 'iterator' in Symbol,
+    blob: 'FileReader' in self && 'Blob' in self && (function() {
+      try {
+        new Blob()
+        return true
+      } catch(e) {
+        return false
+      }
+    })(),
+    formData: 'FormData' in self,
+    arrayBuffer: 'ArrayBuffer' in self
+  }
+
+  if (support.arrayBuffer) {
+    var viewClasses = [
+      '[object Int8Array]',
+      '[object Uint8Array]',
+      '[object Uint8ClampedArray]',
+      '[object Int16Array]',
+      '[object Uint16Array]',
+      '[object Int32Array]',
+      '[object Uint32Array]',
+      '[object Float32Array]',
+      '[object Float64Array]'
+    ]
+
+    var isDataView = function(obj) {
+      return obj && DataView.prototype.isPrototypeOf(obj)
+    }
+
+    var isArrayBufferView = ArrayBuffer.isView || function(obj) {
+      return obj && viewClasses.indexOf(Object.prototype.toString.call(obj)) > -1
+    }
+  }
+
+  function normalizeName(name) {
+    if (typeof name !== 'string') {
+      name = String(name)
+    }
+    if (/[^a-z0-9\-#$%&'*+.\^_`|~]/i.test(name)) {
+      throw new TypeError('Invalid character in header field name')
+    }
+    return name.toLowerCase()
+  }
+
+  function normalizeValue(value) {
+    if (typeof value !== 'string') {
+      value = String(value)
+    }
+    return value
+  }
+
+  // Build a destructive iterator for the value list
+  function iteratorFor(items) {
+    var iterator = {
+      next: function() {
+        var value = items.shift()
+        return {done: value === undefined, value: value}
+      }
+    }
+
+    if (support.iterable) {
+      iterator[Symbol.iterator] = function() {
+        return iterator
+      }
+    }
+
+    return iterator
+  }
+
+  function Headers(headers) {
+    this.map = {}
+
+    if (headers instanceof Headers) {
+      headers.forEach(function(value, name) {
+        this.append(name, value)
+      }, this)
+    } else if (Array.isArray(headers)) {
+      headers.forEach(function(header) {
+        this.append(header[0], header[1])
+      }, this)
+    } else if (headers) {
+      Object.getOwnPropertyNames(headers).forEach(function(name) {
+        this.append(name, headers[name])
+      }, this)
+    }
+  }
+
+  Headers.prototype.append = function(name, value) {
+    name = normalizeName(name)
+    value = normalizeValue(value)
+    var oldValue = this.map[name]
+    this.map[name] = oldValue ? oldValue+','+value : value
+  }
+
+  Headers.prototype['delete'] = function(name) {
+    delete this.map[normalizeName(name)]
+  }
+
+  Headers.prototype.get = function(name) {
+    name = normalizeName(name)
+    return this.has(name) ? this.map[name] : null
+  }
+
+  Headers.prototype.has = function(name) {
+    return this.map.hasOwnProperty(normalizeName(name))
+  }
+
+  Headers.prototype.set = function(name, value) {
+    this.map[normalizeName(name)] = normalizeValue(value)
+  }
+
+  Headers.prototype.forEach = function(callback, thisArg) {
+    for (var name in this.map) {
+      if (this.map.hasOwnProperty(name)) {
+        callback.call(thisArg, this.map[name], name, this)
+      }
+    }
+  }
+
+  Headers.prototype.keys = function() {
+    var items = []
+    this.forEach(function(value, name) { items.push(name) })
+    return iteratorFor(items)
+  }
+
+  Headers.prototype.values = function() {
+    var items = []
+    this.forEach(function(value) { items.push(value) })
+    return iteratorFor(items)
+  }
+
+  Headers.prototype.entries = function() {
+    var items = []
+    this.forEach(function(value, name) { items.push([name, value]) })
+    return iteratorFor(items)
+  }
+
+  if (support.iterable) {
+    Headers.prototype[Symbol.iterator] = Headers.prototype.entries
+  }
+
+  function consumed(body) {
+    if (body.bodyUsed) {
+      return Promise.reject(new TypeError('Already read'))
+    }
+    body.bodyUsed = true
+  }
+
+  function fileReaderReady(reader) {
+    return new Promise(function(resolve, reject) {
+      reader.onload = function() {
+        resolve(reader.result)
+      }
+      reader.onerror = function() {
+        reject(reader.error)
+      }
+    })
+  }
+
+  function readBlobAsArrayBuffer(blob) {
+    var reader = new FileReader()
+    var promise = fileReaderReady(reader)
+    reader.readAsArrayBuffer(blob)
+    return promise
+  }
+
+  function readBlobAsText(blob) {
+    var reader = new FileReader()
+    var promise = fileReaderReady(reader)
+    reader.readAsText(blob)
+    return promise
+  }
+
+  function readArrayBufferAsText(buf) {
+    var view = new Uint8Array(buf)
+    var chars = new Array(view.length)
+
+    for (var i = 0; i < view.length; i++) {
+      chars[i] = String.fromCharCode(view[i])
+    }
+    return chars.join('')
+  }
+
+  function bufferClone(buf) {
+    if (buf.slice) {
+      return buf.slice(0)
+    } else {
+      var view = new Uint8Array(buf.byteLength)
+      view.set(new Uint8Array(buf))
+      return view.buffer
+    }
+  }
+
+  function Body() {
+    this.bodyUsed = false
+
+    this._initBody = function(body) {
+      this._bodyInit = body
+      if (!body) {
+        this._bodyText = ''
+      } else if (typeof body === 'string') {
+        this._bodyText = body
+      } else if (support.blob && Blob.prototype.isPrototypeOf(body)) {
+        this._bodyBlob = body
+      } else if (support.formData && FormData.prototype.isPrototypeOf(body)) {
+        this._bodyFormData = body
+      } else if (support.searchParams && URLSearchParams.prototype.isPrototypeOf(body)) {
+        this._bodyText = body.toString()
+      } else if (support.arrayBuffer && support.blob && isDataView(body)) {
+        this._bodyArrayBuffer = bufferClone(body.buffer)
+        // IE 10-11 can't handle a DataView body.
+        this._bodyInit = new Blob([this._bodyArrayBuffer])
+      } else if (support.arrayBuffer && (ArrayBuffer.prototype.isPrototypeOf(body) || isArrayBufferView(body))) {
+        this._bodyArrayBuffer = bufferClone(body)
+      } else {
+        throw new Error('unsupported BodyInit type')
+      }
+
+      if (!this.headers.get('content-type')) {
+        if (typeof body === 'string') {
+          this.headers.set('content-type', 'text/plain;charset=UTF-8')
+        } else if (this._bodyBlob && this._bodyBlob.type) {
+          this.headers.set('content-type', this._bodyBlob.type)
+        } else if (support.searchParams && URLSearchParams.prototype.isPrototypeOf(body)) {
+          this.headers.set('content-type', 'application/x-www-form-urlencoded;charset=UTF-8')
+        }
+      }
+    }
+
+    if (support.blob) {
+      this.blob = function() {
+        var rejected = consumed(this)
+        if (rejected) {
+          return rejected
+        }
+
+        if (this._bodyBlob) {
+          return Promise.resolve(this._bodyBlob)
+        } else if (this._bodyArrayBuffer) {
+          return Promise.resolve(new Blob([this._bodyArrayBuffer]))
+        } else if (this._bodyFormData) {
+          throw new Error('could not read FormData body as blob')
+        } else {
+          return Promise.resolve(new Blob([this._bodyText]))
+        }
+      }
+
+      this.arrayBuffer = function() {
+        if (this._bodyArrayBuffer) {
+          return consumed(this) || Promise.resolve(this._bodyArrayBuffer)
+        } else {
+          return this.blob().then(readBlobAsArrayBuffer)
+        }
+      }
+    }
+
+    this.text = function() {
+      var rejected = consumed(this)
+      if (rejected) {
+        return rejected
+      }
+
+      if (this._bodyBlob) {
+        return readBlobAsText(this._bodyBlob)
+      } else if (this._bodyArrayBuffer) {
+        return Promise.resolve(readArrayBufferAsText(this._bodyArrayBuffer))
+      } else if (this._bodyFormData) {
+        throw new Error('could not read FormData body as text')
+      } else {
+        return Promise.resolve(this._bodyText)
+      }
+    }
+
+    if (support.formData) {
+      this.formData = function() {
+        return this.text().then(decode)
+      }
+    }
+
+    this.json = function() {
+      return this.text().then(JSON.parse)
+    }
+
+    return this
+  }
+
+  // HTTP methods whose capitalization should be normalized
+  var methods = ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT']
+
+  function normalizeMethod(method) {
+    var upcased = method.toUpperCase()
+    return (methods.indexOf(upcased) > -1) ? upcased : method
+  }
+
+  function Request(input, options) {
+    options = options || {}
+    var body = options.body
+
+    if (input instanceof Request) {
+      if (input.bodyUsed) {
+        throw new TypeError('Already read')
+      }
+      this.url = input.url
+      this.credentials = input.credentials
+      if (!options.headers) {
+        this.headers = new Headers(input.headers)
+      }
+      this.method = input.method
+      this.mode = input.mode
+      if (!body && input._bodyInit != null) {
+        body = input._bodyInit
+        input.bodyUsed = true
+      }
+    } else {
+      this.url = String(input)
+    }
+
+    this.credentials = options.credentials || this.credentials || 'omit'
+    if (options.headers || !this.headers) {
+      this.headers = new Headers(options.headers)
+    }
+    this.method = normalizeMethod(options.method || this.method || 'GET')
+    this.mode = options.mode || this.mode || null
+    this.referrer = null
+
+    if ((this.method === 'GET' || this.method === 'HEAD') && body) {
+      throw new TypeError('Body not allowed for GET or HEAD requests')
+    }
+    this._initBody(body)
+  }
+
+  Request.prototype.clone = function() {
+    return new Request(this, { body: this._bodyInit })
+  }
+
+  function decode(body) {
+    var form = new FormData()
+    body.trim().split('&').forEach(function(bytes) {
+      if (bytes) {
+        var split = bytes.split('=')
+        var name = split.shift().replace(/\+/g, ' ')
+        var value = split.join('=').replace(/\+/g, ' ')
+        form.append(decodeURIComponent(name), decodeURIComponent(value))
+      }
+    })
+    return form
+  }
+
+  function parseHeaders(rawHeaders) {
+    var headers = new Headers()
+    rawHeaders.split(/\r?\n/).forEach(function(line) {
+      var parts = line.split(':')
+      var key = parts.shift().trim()
+      if (key) {
+        var value = parts.join(':').trim()
+        headers.append(key, value)
+      }
+    })
+    return headers
+  }
+
+  Body.call(Request.prototype)
+
+  function Response(bodyInit, options) {
+    if (!options) {
+      options = {}
+    }
+
+    this.type = 'default'
+    this.status = 'status' in options ? options.status : 200
+    this.ok = this.status >= 200 && this.status < 300
+    this.statusText = 'statusText' in options ? options.statusText : 'OK'
+    this.headers = new Headers(options.headers)
+    this.url = options.url || ''
+    this._initBody(bodyInit)
+  }
+
+  Body.call(Response.prototype)
+
+  Response.prototype.clone = function() {
+    return new Response(this._bodyInit, {
+      status: this.status,
+      statusText: this.statusText,
+      headers: new Headers(this.headers),
+      url: this.url
+    })
+  }
+
+  Response.error = function() {
+    var response = new Response(null, {status: 0, statusText: ''})
+    response.type = 'error'
+    return response
+  }
+
+  var redirectStatuses = [301, 302, 303, 307, 308]
+
+  Response.redirect = function(url, status) {
+    if (redirectStatuses.indexOf(status) === -1) {
+      throw new RangeError('Invalid status code')
+    }
+
+    return new Response(null, {status: status, headers: {location: url}})
+  }
+
+  self.Headers = Headers
+  self.Request = Request
+  self.Response = Response
+
+  self.fetch = function(input, init) {
+    return new Promise(function(resolve, reject) {
+      var request = new Request(input, init)
+      var xhr = new XMLHttpRequest()
+
+      xhr.onload = function() {
+        var options = {
+          status: xhr.status,
+          statusText: xhr.statusText,
+          headers: parseHeaders(xhr.getAllResponseHeaders() || '')
+        }
+        options.url = 'responseURL' in xhr ? xhr.responseURL : options.headers.get('X-Request-URL')
+        var body = 'response' in xhr ? xhr.response : xhr.responseText
+        resolve(new Response(body, options))
+      }
+
+      xhr.onerror = function() {
+        reject(new TypeError('Network request failed'))
+      }
+
+      xhr.ontimeout = function() {
+        reject(new TypeError('Network request failed'))
+      }
+
+      xhr.open(request.method, request.url, true)
+
+      if (request.credentials === 'include') {
+        xhr.withCredentials = true
+      }
+
+      if ('responseType' in xhr && support.blob) {
+        xhr.responseType = 'blob'
+      }
+
+      request.headers.forEach(function(value, name) {
+        xhr.setRequestHeader(name, value)
+      })
+
+      xhr.send(typeof request._bodyInit === 'undefined' ? null : request._bodyInit)
+    })
+  }
+  self.fetch.polyfill = true
+})(typeof self !== 'undefined' ? self : this);
+
 Core = new function () {
 
-    this.version = '1.1.0';
+    this.version = '1.1.3';
     this.debug = false;
-    this.params = function (pos) {
-        var path = window.location.pathname.split('/');
-        path.shift();
-        if(typeof pos == 'undefined') {
-            return path;
-        } else {
-            return (path[pos])?path[pos]:null;
-        }
-    };
-    this.formParams = function (name) {
-        if(typeof name == 'undefined') {
-            var results = new RegExp('[\?&](.*)').exec(window.location.href);
-            if(null == results) return '';
-            else return results[1] || 0;
-        }
-        // Else search for the field
-        else {
-            var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
-            if (results == null) {
-                results = new RegExp('[\?&](' + name + ')[&#$]*').exec(window.location.href);
-                if (results == null) return null;
-                else return true;
+    this.authActive = false;
+    this.authCookieName = 'cfauth';
+
+    this.url = new function () {
+        this.params = function(pos) {
+            var path = window.location.pathname.split('/');
+            path.shift();
+            if(typeof pos == 'undefined') {
+                return path;
             } else {
-                return results[1] || 0;
+                return (path[pos])?path[pos]:null;
             }
         }
+        this.formParams = function(name) {
+            if(typeof name == 'undefined') {
+                var results = new RegExp('[\?&](.*)').exec(window.location.href);
+                if(null == results) return '';
+                else return results[1] || 0;
+            }
+            // Else search for the field
+            else {
+                var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+                if (results == null) {
+                    results = new RegExp('[\?&](' + name + ')[&#$]*').exec(window.location.href);
+                    if (results == null) return null;
+                    else return true;
+                } else {
+                    return results[1] || 0;
+                }
+            }
+        }
+        // hash, host, hostname, href, origin, pathname, port, protocol
+        this.parts = function(part) {
+            if(typeof part=='undefined') return window.location;
+            else return window.location[part];
+        }
     };
+
+    // Log class control. printDebug requires debug = true
     this.log =  new function () {
-        this.debug = false;
+        this.debug = true;
         this.type = 'console';
 
         // Print if debug == false
         this.printDebug = function(title,content,separator) {
             // If no debug return
             if (!Core.log.debug) return;
-            Core.log.print(title,content,separator);
+            Core.log.print('[DEBUG] '+title,content,separator);
         };
 
         // Print in console.
@@ -1217,6 +1229,8 @@ Core = new function () {
         };
 
     };
+
+    // Error class control.
     this.error = new function () {
         this.add = function (title, content,separator) {
             // If no title, print:
@@ -1225,6 +1239,125 @@ Core = new function () {
             Core.log.print(title,content,true);
         };
     };
+
+    // No persistent data. If reload page the info will be lost.
+    this.data = new function () {
+
+        this.info = {};
+
+        this.add = function(data) {
+
+            if (Core.debug) Core.log.printDebug('Core.data.add(' + JSON.stringify(varname)+');');
+
+            if(typeof data !='object') {
+                Core.error.add('Core.data.add(data)','data is not an object');
+                return false;
+            }
+
+            for(k in data) {
+                Core.data.info[k] = data[k];
+            }
+            return true;
+        }
+
+        this.set = function(key,value) {
+
+            if (Core.debug) Core.log.printDebug('Core.data.set("'+key+'",' + JSON.stringify(value)+');');
+
+            if(typeof key !='string') {
+                Core.error.add('Core.data.set(key,value)','key is not a string');
+                return false;
+            }
+
+            Core.data.info[key] = value;
+            return true;
+        }
+
+        this.get = function(key) {
+            if (Core.debug) Core.log.printDebug('Core.data.get("'+key+'");');
+
+            if(typeof key =='undefined') return;
+
+            return(Core.data.info[key]);
+        }
+
+        this.reset = function() {
+            Core.data.info = {};
+        }
+    };
+
+    // Manage Cookies based on js-cookies
+    this.cookies =  new function () {
+        this.path = {path: '/'};
+        this.remove = function (varname) {
+            if (typeof varname != 'undefined') {
+                Cookies.remove(varname, Core.cookies.path);
+                if (Core.debug) Core.log.printDebug('Core.cookies.remove("' + varname+'");');
+            }
+        };
+        this.set = function (varname, data) {
+            Cookies.set(varname, data, Core.cookies.path);
+            if (Core.debug) Core.log.printDebug('Core.cookies.set("' + varname+'","'+data+'");');
+        };
+        this.get = function (varname) {
+            return Cookies.get(varname);
+        };
+    };
+
+    // Persistent data. Reloading the page the info will be kept in the localStorage compressed if the browser support it
+    // It requires LZString: bower install lz-string --save
+    this.cache =  new function () {
+
+        this.isAvailable = true;
+
+        if (typeof(Storage) == "undefined") {
+            Core.error.add('Cache is not supported in this browser');
+            this.available = false;
+        };
+
+        this.set = function (key, value) {
+            if (Core.debug) Core.log.printDebug('Core.cache.set("' + key+'",'+JSON.stringify(value)+')');
+
+            if (Core.cache.isAvailable) {
+                key = 'CloudFrameWorkCache_'+key;
+                if(typeof value == 'object') value = JSON.stringify(value);
+                else value = JSON.stringify({__object:value});
+                // Compress
+                value = LZString.compress(value);
+                localStorage.setItem(key, value);
+
+                // Return
+                return true;
+            }
+            return false;
+        };
+        this.get = function (key) {
+            if (Core.debug) Core.log.printDebug('Core.cache.get("' + key+'")');
+
+            if (Core.cache.isAvailable) {
+                key = 'CloudFrameWorkCache_'+key;
+                var ret = localStorage.getItem(key);
+                if(typeof ret != undefined && ret != null) {
+                    ret = JSON.parse(LZString.decompress(ret));
+                    if(typeof ret['__object'] != 'undefined') ret = ret['__object'];
+                }
+                return ret;
+
+            }
+            return false;
+        };
+
+        this.delete = function (key) {
+            if (Core.debug) Core.log.printDebug('Core.cache.delete("' + key+'",..)');
+            if (Core.cache.isAvailable) {
+                key = 'CloudFrameWorkCache_'+key;
+                localStorage.removeItem(key);
+                return true;
+            }
+            return false;
+        };
+    };
+
     // It requires fetch polyfill: bower install fetch --save
     this.request = new function () {
         this.token = ''; // X-DS-TOKEN sent in all calls
@@ -1342,7 +1475,7 @@ Core = new function () {
             if(typeof payload['body'] != 'undefined' && payload['body']!= null) call['body'] = payload['body'];
 
             fetch(endpoint, call).then(function (response) {
-                if(Core.debug) Core.log.printDebug('Core.request.call returning from: '+endpoint,'Tranforming from: '+payload['responseType'],true);
+                if(Core.debug) Core.log.printDebug('Core.request.call returning from: '+endpoint+' and transforming result from: '+payload['responseType'],true);
                 if(payload['mode']=='no-cors') {
                     return(response);
                 } else {
@@ -1356,8 +1489,9 @@ Core = new function () {
             }).then(function (response) {
                 callback(response);
             }).catch(function (e) {
-                    Core.error.add('[Error] request.call(' + endpoint+') '+e);
-                    errorcallback(e);
+                    if(typeof e == 'undefined') e = '';
+                    Core.error.add('[Core.request] fetch(' + endpoint+') ');
+                    //errorcallback(e);
                 }
             );
         }
@@ -1379,74 +1513,8 @@ Core = new function () {
             Core.request.headers = {};
         };
     };
-    this.cache =  new function () {
 
-        this.isAvailable = true;
-
-        if (typeof(Storage) == "undefined") {
-            Core.error.add('Cache is not supported in this browser');
-            this.available = false;
-        };
-
-        this.set = function (key, value) {
-            if (Core.debug) Core.log.printDebug('Core.cache.set("' + key+'",..)');
-
-            if (Core.cache.isAvailable) {
-                key = 'CloudFrameWorkCache_'+key;
-                if(typeof value == 'object') value = JSON.stringify(value);
-                else value = JSON.stringify({__object:value});
-
-                // Compress
-                value = LZString.compress(value);
-                localStorage.setItem(key, value);
-
-                // Return
-                return true;
-            }
-            return false;
-        };
-        this.get = function (key) {
-            if (Core.debug) Core.log.printDebug('Core.cache.get("' + key+'",..)');
-
-            if (Core.cache.isAvailable) {
-                key = 'CloudFrameWorkCache_'+key;
-                var ret = localStorage.getItem(key);
-                if(typeof ret != undefined && ret != null) {
-                    ret = JSON.parse(LZString.decompress(ret));
-                    if(typeof ret['__object'] != 'undefined') ret = ret.__object;
-                }
-                return ret;
-
-            }
-            return false;
-        };
-
-        this.delete = function (key) {
-            if (Core.debug) Core.log.printDebug('Core.cache.delete("' + key+'",..)');
-            if (Core.cache.isAvailable) {
-                key = 'CloudFrameWorkCache_'+key;
-                localStorage.removeItem(key);
-                return true;
-            }
-            return false;
-        };
-    };
-    this.cookies =  new function () {
-        this.path = {path: '/'};
-        this.remove = function (varname) {
-            if (typeof varname != 'undefined') {
-                Cookies.remove(varname, Core.cookies.path);
-                if (Core.debug) Core.log.printDebug('removed cookie ' + varname);
-            }
-        };
-        this.set = function (varname, data) {
-            Cookies.set(varname, data, Core.cookies.path);
-            if (Core.debug) Core.log.printDebug('set cookie ' + varname);
-        };
-        this.get = function (varname) {
-            return Cookies.get(varname);
-        };
-    };
+    // Define services to use with Core.request
     this.services = new function() {
         var binds = {};
 
@@ -1521,6 +1589,8 @@ Core = new function () {
             }
         }
     };
+
+    // deprecated
     this.dom = new function() {
 
         // Search the element in the dom
@@ -1558,6 +1628,8 @@ Core = new function () {
 
 
     };
+
+    // Manage configuration. It takes <body coore-config='JSON' ..> to init
     this.config = new function () {
         this.config = null;
         if(null==this.config && (body = document.getElementsByTagName("BODY")[0].getAttribute("core-config"))) {
@@ -1579,6 +1651,8 @@ Core = new function () {
             return true;
         }
     };
+
+    // Localize contents
     this.localize = new function () {
         this.dics = null;
         this.lang = 'en';
@@ -1599,7 +1673,7 @@ Core = new function () {
             if(typeof  localizevar == 'undefined') {
                 return Core.localize.dics;
             } else {
-                if(Core.formParams('_debugDics')) return localizevar
+                if(Core.url.formParams('_debugDics')) return localizevar
                 else return (typeof Core.localize.dics[localizevar] != 'undefined')?Core.localize.dics[localizevar]:localizevar;
 
             }
@@ -1629,66 +1703,106 @@ Core = new function () {
         }
     };
 
+    // Managin User info
     this.user = new function () {
         this.auth = false;      // Authenticated true or false
         this.info = {};         // User information when authenticated
         this.cookieVar = null;  // Cookie to use for authentication id
 
-        // Set Authentication to true of false
-        this.setAuth = function(val,cookieVar) {
-
-            // No authentication values by default
-            Core.user.info = {};
-            Core.user.credentials = {};
-            Core.user.auth=false;
-            Core.user.cookieVar = null;
-            Core.cache.set('CloudFrameWorkAuthUser',{});
-
-            // Activating Authentication
-            if(val) {
-                cookieValue = Core.cookies.get(cookieVar);
-                if(typeof cookieValue == 'undefined' || !cookieValue) {
-                    Core.error.add('Core.user.setAuth(true,"'+cookieVar+'"), cookieVar does not exist');
-                    return false;
-                } else {
-                    Core.user.auth=true;
-                    Core.user.cookieVar = cookieVar;
-                    Core.cache.set('CloudFrameWorkAuthUser',{__id:cookieValue});
-                    Core.user.info = {__id:cookieValue};
-
-                }
-            }
-            // Finalizing deactivating authentication
-            else {
-                // Delete cookieVar if it is passed
-                if(typeof cookieVar != 'undefined') Core.cookies.remove(cookieVar);
-            }
-            return true;
-
-        };
-
         // If you want to recover data avoiding to do extra call.. use init
         this.init = function (cookieVar) {
 
+            if(!Core.authActive) {
+                Core.error.add('Core.user.init: Core.authActive is false');
+                return;
+            }
+
+            // Calculationg cookieVar if it is not passed
+            if(typeof cookieVar =='undefined') {
+                if(Core.debug) Core.log.printDebug('Core.user.init: using Core.authCookieName ['+Core.authCookieName+']');
+                Core.user.cookieVar = Core.authCookieName;
+                cookieVar = Core.user.cookieVar;
+            } else {
+                Core.user.cookieVar = cookieVar;
+            }
+
+            if(typeof cookieVar == null) {
+                Core.error.add('Core.user.init: missing cookieVar')
+                return;
+            }
+
+            if(Core.debug) Core.log.printDebug('Core.user.init("'+cookieVar+'");');
             var value = Core.cookies.get(cookieVar);
-            if(!(value = Core.cookies.get(cookieVar))) {
-                Core.user.setAuth(false);
+            if(!value) {
+                if(Core.debug) Core.log.printDebug(cookieVar+' cookie does not have any value.. so Core.user.setAuth(false)');
+                if(Core.user.auth) Core.user.setAuth(false);
             } else {
                 var cache = null;
                 if(cache = Core.cache.get('CloudFrameWorkAuthUser')) {
                     if(typeof cache['__id'] == undefined || cache['__id']!=value) {
+                        if(Core.debug) Core.log.printDebug('Core.user.init: CloudFrameWorkAuthUser {__id:value } DOES NOT MATCH with the value of the cookie '+cookieVar);
                         Core.user.setAuth(false);
                     } else {
+                        if(Core.debug) Core.log.printDebug('Core.user.init: CloudFrameWorkAuthUser {__id:value} match with the value of the cookie '+cookieVar);
                         Core.user.auth=true;
                         Core.user.info = cache;
                     }
                 }
             }
+            if(Core.debug) Core.log.printDebug('Core.isAuth(): '+Core.user.isAuth());
+
         }
+
+        // Set Authentication to true of false
+        this.setAuth = function(val) {
+
+            // Assign the current cookie var
+            cookieVar = Core.user.cookieVar;
+
+            if(typeof cookieVar =='undefined' || cookieVar == null) {
+                Core.error.add('Core.user.setAuth: missing Core.user.cookieVar. Try use Core.init()');
+                return;
+            }
+
+            if(Core.debug) Core.log.printDebug('Core.user.setAuth('+val+') for cookie: '+cookieVar);
+
+            // No authentication values by default
+            Core.user.info = {};
+            Core.user.credentials = {};
+            Core.user.auth=false;
+            Core.cache.set('CloudFrameWorkAuthUser',{});
+
+
+            // Activating Authentication
+            cookieValue = Core.cookies.get(cookieVar);
+            if(val) {
+                if(typeof cookieValue == 'undefined' || !cookieValue) {
+                    Core.error.add('Core.user.setAuth(true), cookieVar does not exist: '+cookieVar);
+                    return false;
+                } else {
+                    Core.user.auth=true;
+                    Core.cache.set('CloudFrameWorkAuthUser',{__id:cookieValue});
+                    Core.user.info = {__id:cookieValue};
+                    if(Core.debug) Core.log.printDebug('Core.user.setAuth: saved CloudFrameWorkAuthUser in cache with value '+JSON.stringify(Core.cache.get('CloudFrameWorkAuthUser')));
+                }
+            }
+            // Finalizing deactivating authentication
+            else {
+                // Delete cookieVar if it is passed
+                if(typeof cookieValue != 'undefined') Core.cookies.remove(cookieVar);
+            }
+            return true;
+
+        };
 
         // Says if a user is auth
         this.isAuth = function() {
             return (Core.user.auth==true);
+        }
+
+        this.getCookieValue = function() {
+            if(Core.user.cookieVar) return Core.cookies.get(Core.user.cookieVar);
+            else return null;
         }
 
         this.add = function(data) {
@@ -1754,7 +1868,6 @@ Core = new function () {
         }
     };
 
-
     // Bind function based on promises
     this.bind = function(functions,callback,errorcallback) {
 
@@ -1808,80 +1921,118 @@ Core = new function () {
         }
         return ret;
     }
+
+    // Init the frameWork
+    this.init = function(functions,callback) {
+
+        if(Core.debug) Core.log.printDebug('Core.init('+typeof functions+','+typeof callback+')');
+
+        // Check auth
+        if(Core.authActive) {
+            Core.user.init(Core.authCookieName);
+        }
+
+        if(typeof functions == 'function' || typeof functions == 'array') {
+            Core.bind(functions,function(response) {
+                if(typeof callback == 'function')  callback(response);
+            });
+        } else {
+            if(typeof callback == 'function') callback({success:true});
+        }
+
+    }
+
+    // It generates a popup avoiding blocking and execute callback once it has finished.
+    this.oauthpopup = function(options)
+    {
+        options.windowName = options.windowName ||  'ConnectWithOAuth'; // should not include space for IE
+        options.windowOptions = options.windowOptions || 'location=0,status=0,width=800,height=400';
+        options.callback = options.callback || function(){ window.location.reload(); };
+        var that = this;
+        console.log(options.path);
+        that._oauthWindow = window.open(options.path, options.windowName, options.windowOptions);
+        that._oauthWindow.focus();
+        that._oauthInterval = window.setInterval(function(){
+            if (that._oauthWindow.closed) {
+                window.clearInterval(that._oauthInterval);
+                options.callback();
+            } else {
+                that._oauthWindow.focus();
+            }
+
+        }, 1000);
+    };
+
 };
 Bloombees = new function () {
     // Config vars
-    this.version = '1.0.2'
-    this.debug = false;
+    this.version = '1.0.3'
+    this.debug = true;
     this.api = Core.config.get('bloombeesAPI') || 'https://bloombees.com/h/api';
     this.webKey = Core.config.get('bloombeesWebKey') || 'Development';
     this.cookieNameForToken = 'bbtoken';
     this.cookieNameForHash = 'bbhash';
     this.data = {};
-    Core.request.base = this.api;
-    Core.request.key = this.webKey;
 
+    Core.authCookieName = this.cookieNameForToken;  // Asign the local name of the cookie for auth
+    Core.authActive = true;                         // Let's active the authorization mode
+    Core.request.base = this.api;                   // Default calls by default
+
+    Core.debug = false;
+
+
+    // ------------------
     // Init Bloombees App
+    // ------------------
     this.init = function (callback) {
-        Core.bind([Bloombees.initUserAuth],function(response) {
+        Core.request.key = this.webKey;                 // Default webkey by default X-WEB-KEY
+        Core.request.token = '';                        // Default X-DS-TOKEN to '' until init
+        Core.init([],function() {
             if(Core.user.isAuth()) {
+                // Assign in the calls the value of the user's cookie value
+                Core.request.token = Core.user.getCookieValue();
 
-                // Add token for future call
-                Core.request.token = Core.cookies.get(Bloombees.cookieNameForToken);
-                if(Bloombees.debug) console.log('Added Core.request.token');
-            }
-            callback();
-        });
-
-    }
-
-    // Init User auth
-    this.initUserAuth = function (resolve,reject) {
-        Core.user.init(Bloombees.cookieNameForToken);
-        if(Core.user.isAuth()) {
-            resolve();
-        } else {
-            if(cookie = Core.cookies.get(Bloombees.cookieNameForToken)) {
-                console.log('cookie still exist');
-                //---
-                if(Bloombees.debug) console.log('Recovering user data from token /auth/check/dstoken');
-
-                Core.request.token = cookie;
+                // We have to check that cookie is still available.
+                if(Bloombees.debug && !Core.debug) Core.log.printDebug('Checking the token in : /auth/check/dstoken');
                 Core.request.call({url:'/auth/check/dstoken',method:'GET'},function (response) {
                     if(response.success) {
-                        if(Core.user.setAuth(true,Bloombees.cookieNameForToken)) {
-                            Core.user.add(response.data);
-                            //---
-                            if(Bloombees.debug) console.log('Data recovered');
-                        } else {
-                            Core.error.add('Bloombees.login','Error in Core.user.setAuth(true,Bloombees.cookieNameForToken)');
-                        }
+                        Core.user.add(response.data);
+                        if(Bloombees.debug) Core.log.printDebug('Token ok: data recovered and Core.request.token assigned');
                     } else {
-                        Bloombees.data.reset();
-                        Core.user.setAuth(false,Bloombees.cookieNameForToken);
+                        if(Bloombees.debug) Core.log.printDebug('Token error: deletin local credentials');
+
+                        Core.user.setAuth(false);
+                        Core.data.reset();
+                        Core.request.token = '';
                     }
-                    resolve();
+                    callback();
                 });
             } else {
-                Bloombees.data.reset();
-                resolve();
+                if(Core.cookies.get(Bloombees.cookieNameForToken)) {
+                    console.log('cookie still exist');
+                }
+                Core.data.reset();
+                Core.request.token = '';
+                callback();
             }
-        }
-
-    };
+        });
+    }
 
     // Login with userpassword
     this.login = function(data,callback) {
         Core.request.call({url:'/auth/userpassword',params:data,method:'POST'},function (response) {
-            Core.user.setAuth(false);
+            if(Core.user.isAuth()) Core.user.setAuth(false);
             if(response.success) {
                 Core.cookies.set(Bloombees.cookieNameForToken,response.data.dstoken);
-
-                if(Core.user.setAuth(true,Bloombees.cookieNameForToken)) {
-                    if(Bloombees.debug) Core.user.add(response.data);
+                if(Core.user.setAuth(true)) {
+                    Core.request.token = Core.user.getCookieValue();
+                    Core.user.add(response.data);
+                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Added user info: '+JSON.stringify(response.data));
                 } else {
-                    Core.error.add('Bloombees.login','Error in Core.user.setAuth(true,Bloombees.cookieNameForToken)');
+                    Core.error.add('Bloombees.login','Error in Core.user.setAuth(true)');
                 }
+            } else {
+                Core.error.add('Bloombees.login',response);
             }
             callback(response);
         });
@@ -1892,11 +2043,15 @@ Bloombees = new function () {
         Core.request.call({url:'/auth/oauthservice',params:{id:oauth_id},method:'POST'},function (response) {
             if(response.success) {
                 Core.cookies.set(Bloombees.cookieNameForToken,response.data.dstoken);
-                if(Core.user.setAuth(true,Bloombees.cookieNameForToken)) {
-                    if(Bloombees.debug) Core.user.add(response.data);
+                if(Core.user.setAuth(true)) {
+                    Core.request.token = Core.user.getCookieValue();
+                    Core.user.add(response.data);
+                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Added user info: '+JSON.stringify(response.data));
                 } else {
-                    Core.error.add('Bloombees.oauth','Error in Core.user.setAuth(true,Bloombees.cookieNameForToken)');
+                    Core.error.add('Bloombees.oauth','Error in Core.user.setAuth(true)');
                 }
+            }else {
+                Core.error.add('Bloombees.oauth',response);
             }
             callback(response);
         });
@@ -1904,7 +2059,7 @@ Bloombees = new function () {
 
     // It says if the user is auth or not.
     this.isAuth = function() {
-        return(Core.user.isAuth());
+        return(Core.user.isAuth()===true);
     }
 
     // Execute a logout
@@ -1918,20 +2073,16 @@ Bloombees = new function () {
                     if(Bloombees.debug) console.log('Token deleted');
 
                 }
-                Core.user.setAuth(false,Bloombees.cookieNameForToken);
-                Bloombees.data.reset();
+                Core.user.setAuth(false);
+                Core.data.reset();
                 Core.request.token = '';
                 callback();
             });
         } else {
-            Bloombees.data.reset();
+            Core.data.reset();
             Core.request.token = '';
             callback();
         }
-
-
-
-
     }
 
     // Return the token from Cookies with name: this.cookieNameForToken
@@ -1940,8 +2091,10 @@ Bloombees = new function () {
     // Return the token from Cookies with name: this.cookieNameForHash
     this.getHash = function() {return(Core.cookies.get(Bloombees.cookieNameForHash) || '')};
 
+
     // Return current socialNetWorks
     this.getUserSocialNetworks = function(callback,reload) {
+
 
         if(!Bloombees.isAuth()) {
             Core.error.add('Bloombees.getUserSocialNetworks','user is not auth end.');
@@ -1950,13 +2103,13 @@ Bloombees = new function () {
         }
 
 
-        var data = Bloombees.data.get('getUserSocialNetworks');
+        var data = Core.data.get('getUserSocialNetworks');
         if(typeof data == 'undefined' || reload) {
-            Bloombees.data.set('getUserSocialNetworks',{success:false});
+            Core.data.set('getUserSocialNetworks',{success:false});
 
             Core.request.call({url:'/socialnetworks/connections/'+Core.user.get('User_id'),method:'GET'},function (response) {
                 if(response.success) {
-                    Bloombees.data.set('getUserSocialNetworks',response);
+                    Core.data.set('getUserSocialNetworks',response);
                 }
                 callback(response);
             });
@@ -1988,46 +2141,6 @@ Bloombees = new function () {
             callback(response);
         });
 
+
     }
-    // Helper to add get Data
-    this.data = new function () {
-
-        this.info = {};
-
-        this.add = function(data) {
-
-            if(typeof data !='object') {
-                Core.error.add('Bloombees.data.add(data)','data is not an object');
-                return false;
-            }
-
-            for(k in data) {
-                Bloombees.data.info[k] = data[k];
-            }
-            Core.cache.set('CloudFrameWorkAuthUser',Bloombees.data.info);
-            return true;
-        }
-
-        this.set = function(key,value) {
-
-            if(typeof key !='string') {
-                Core.error.add('Bloombees.data.set(key,value)','key is not a string');
-                return false;
-            }
-
-            Bloombees.data.info[key] = value;
-            Core.cache.set('CloudFrameWorkAuthUser',Bloombees.data.info);
-            return true;
-        }
-
-        this.get = function(key) {
-            if(typeof key =='undefined') return;
-
-            return(Bloombees.data.info[key]);
-        }
-
-        this.reset = function() {
-            Bloombees.data.info = {};
-        }
-    };
 }
