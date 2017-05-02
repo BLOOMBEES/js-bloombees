@@ -120,6 +120,23 @@
     </nav>
 
     <!-- Main component for a primary marketing message or call to action -->
+    <div data-bind="template: {name: 'homeTemplate'}"></div>
+
+
+
+    <footer class="footer">
+        <div class="container">
+            <p class="text-muted" data-bind="with: bottomData"> bloombeesAPI: <b data-bind="text: bloombeesAPI"></b>
+                bbtoken: [<b data-bind="text: bbtoken"></b>]
+                bbhash:[<b data-bind="text: bbhash"></b>] [<a href="javascript:vm.reset();">r</a>]</p>
+        </div>
+    </footer>
+</div> <!-- /container -->
+
+
+<script src = "js/js-bloombees.js" _src="https://bloombees-googlestorage-7pxvh1vxhs.netdna-ssl.com/bloombees-public/static/js/js-bloombees.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.2/knockout-min.js" integrity="sha256-owX7sroiO/O1a7h3a4X29A1g3QgqdNvijRQ7V5TH45M=" crossorigin="anonymous"></script>
+<script type="text/html" id="homeTemplate">
     <div id="homePage" class="jumbotron" style="display: none" data-bind="visible: !isAuth()" >
         <h1>js-bloombes</h1>
         <p>This example is a quick exercise to illustrate how js-bloombees is used.</p>
@@ -134,19 +151,7 @@
         </div>
         <h1>Auth user</h1>
     </div>
-
-    <footer class="footer">
-        <div class="container">
-            <p class="text-muted" data-bind="with: bottomData"> bloombeesAPI: <b data-bind="text: bloombeesAPI"></b>
-                bbtoken: [<b data-bind="text: bbtoken"></b>]
-                bbhash:[<b data-bind="text: bbhash"></b>] [<a href="javascript:vm.reset();">r</a>]</p>
-        </div>
-    </footer>
-</div> <!-- /container -->
-
-
-<script src = "js/js-bloombees.js" _src="https://bloombees-googlestorage-7pxvh1vxhs.netdna-ssl.com/bloombees-public/static/js/js-bloombees.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.2/knockout-min.js" integrity="sha256-owX7sroiO/O1a7h3a4X29A1g3QgqdNvijRQ7V5TH45M=" crossorigin="anonymous"></script>
+</script>
 <script>
 
     // Signin module using Jquery.validator
@@ -300,10 +305,16 @@
         self.isAuth = ko.observable(Bloombees.isAuth());
         self.userData = ko.observable({Store_uniqueId: Core.user.info['Store_uniqueId']});
 
+        self.loadHomeTemplate = function() {
+            if(self.isAuth ) {
+                return('/directives/auth/home.htm');
+            } else {
+                return('/directives/noauth/home.htm');
+
+            }
+        }
 
         // About social networks
-
-
         // -- DRAW Social Networks.
         // Transform and update socialNetworks based on Core.data.et('connectedSocialNetworks')
         self.socialNetworks = ko.observable([]);

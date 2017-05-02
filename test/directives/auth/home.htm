@@ -1,0 +1,6 @@
+<div id="authPage" class="jumbotron" style="display: none" data-bind="visible: isAuth()" >
+    <div id="userSocialNetworks" data-bind="foreach: socialNetworks">
+        <a data-bind="attr: {href: 'javascript:connectSocialNetwork(\''+sn+'\')', class: 'btn btn-social-icon btn-'+sn+((active)?'':' btn-default') }" ><span data-bind="attr: {class: 'fa fa-'+sn}"></span></a>
+    </div>
+    <h1>Auth user</h1>
+</div>
