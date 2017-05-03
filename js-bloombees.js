@@ -1130,7 +1130,7 @@ if (typeof define === 'function' && define.amd) {
 
 Core = new function () {
 
-    this.version = '1.1.5';
+    this.version = '1.1.6';
     this.debug = false;
     this.authActive = false;
     this.authCookieName = 'cfauth';
@@ -1480,7 +1480,7 @@ Core = new function () {
             if(typeof payload['body'] != 'undefined' && payload['body']!= null) call['body'] = payload['body'];
 
             fetch(endpoint, call).then(function (response) {
-                if(Core.debug) Core.log.printDebug('Core.request.call returning from: '+endpoint+' and transforming result from: '+payload['responseType'],true);
+                if(Core.debug) Core.log.printDebug('Core.request.call returning from: '+endpoint+' and transforming result from: '+payload['responseType']);
                 if(payload['mode']=='no-cors') {
                     return(response);
                 } else {
@@ -2095,9 +2095,10 @@ Core = new function () {
     };
 
 };
+
 Bloombees = new function () {
     // Config vars
-    this.version = '1.0.6'
+    this.version = '1.0.7';
     this.debug = true;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -2333,6 +2334,47 @@ Bloombees = new function () {
                 if(response.success) {
                     Core.data.set('getUserTermsAndConditions',response);
                 }
+                callback(response);
+            });
+        } else {
+            callback(data);
+        }
+    }
+
+    this.acceptUserTermsAndConditions = function(version,callback) {
+
+        if(typeof version != 'string') {
+            Bloombees.error('Bloombees.acceptUserTermsAndConditions','version is not a string.');
+            callback({success:false,error:['Bloombees.acceptUserTermsAndConditions','version is not a string.']});
+            return;
+        }
+
+        if(!Bloombees.isAuth()) {
+            Bloombees.error('Bloombees.acceptUserTermsAndConditions','user is not authenticated.');
+            callback({success:false,error:['User is not authenticated in the frontend. Avoiding call']});
+            return;
+        }
+        Core.debug=true;
+        Core.request.call({url:'/auth/terms/'+Core.user.get('User_id'),method:'POST',params:{User_termsId:version}},function (response) {
+            callback(response);
+        });
+    }
+
+    // Return current socialNetWorks
+    this.getHTMLVersionOfTermsAndConditions = function(version,callback,reload) {
+
+        if(typeof version != 'string') {
+            Bloombees.error('Bloombees.getHTMLVersionOfTermsAndConditions','version is not a string.');
+            callback('error loading terms.');
+            return;
+        }
+
+        var data = Core.data.get('getHTMLVersionOfTermsAndConditions');
+        if(typeof data == 'undefined' || reload) {
+            Core.data.set('getHTMLVersionOfTermsAndConditions_'+version,null);
+
+            Core.request.call({url:'/legal/tac/versions/'+version,method:'GET',responseType:'html'},function (response) {
+                Core.data.set('getHTMLVersionOfTermsAndConditions_'+version,response);
                 callback(response);
             });
         } else {
