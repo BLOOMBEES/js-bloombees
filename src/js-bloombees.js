@@ -1,12 +1,13 @@
 Bloombees = new function () {
     // Config vars
-    this.version = '1.0.4'
+    this.version = '1.0.5'
     this.debug = true;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
     this.webKey = Core.config.get('bloombeesWebKey') || 'Development';
     this.cookieNameForToken = 'bbtoken';
     this.cookieNameForHash = 'bbhash';
+    this.lang = Core.config.get('bloombeesLang') || 'en';
     this.data = {};
     this.hashActive = false;                        // Generate a hash to allow backend doing calls
     this.authActive = true;                        // Generate a hash to allow backend doing calls
@@ -177,7 +178,7 @@ Bloombees = new function () {
                 Core.user.setAuth(false);
                 Core.data.reset();
                 Core.request.token = '';
-                callback();
+                if(typeof callback != 'undefined') callback();
             });
         } else {
             Core.data.reset();
@@ -197,8 +198,8 @@ Bloombees = new function () {
     this.getUserSocialNetworks = function(callback,reload) {
 
         if(!Bloombees.isAuth()) {
-            Bloombees.error('Bloombees.getUserSocialNetworks','user is not auth end.');
-            callback({success:false,error:['User is not auth in the frontend. Avoiding call']});
+            Bloombees.error('Bloombees.getUserSocialNetworks','user is not authenticated.');
+            callback({success:false,error:['User is not authenticated in the frontend. Avoiding call']});
             return;
         }
 
@@ -210,6 +211,30 @@ Bloombees = new function () {
             Core.request.call({url:'/socialnetworks/connections/'+Core.user.get('User_id'),method:'GET'},function (response) {
                 if(response.success) {
                     Core.data.set('getUserSocialNetworks',response);
+                }
+                callback(response);
+            });
+        } else {
+            callback(data);
+        }
+    }
+
+    // Return current socialNetWorks
+    this.getUserTermsAndConditions = function(callback,reload) {
+
+        if(!Bloombees.isAuth()) {
+            Bloombees.error('Bloombees.getUserTermsAndConditions','user is not authenticated.');
+            callback({success:false,error:['User is not authenticated in the frontend. Avoiding call']});
+            return;
+        }
+
+        var data = Core.data.get('getUserTermsAndConditions');
+        if(typeof data == 'undefined' || reload) {
+            Core.data.set('getUserTermsAndConditions',{success:false});
+
+            Core.request.call({url:'/auth/terms/'+Core.user.get('User_id'),method:'GET'},function (response) {
+                if(response.success) {
+                    Core.data.set('getUserTermsAndConditions',response);
                 }
                 callback(response);
             });
