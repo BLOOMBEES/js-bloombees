@@ -55,8 +55,8 @@
 </head>
 <body core-config='{"bloombeesOauth":"https://bloombees.com/h/service/oauth","bloombeesAPI":"https://bloombees.com/h/api","bloombeesWebKey":"testPage"}'
       core-lang="en" core-localize='{"tag1":"Hello world"}'>
-<div id="loader" style="display: block" data-bind="visible: initLoading()"></div>
-<div id="app" class="container" style="display: none"  data-bind="visible: !initLoading()">
+<div id="loader" style="display: block" ></div>
+<div id="app" class="container" style="display: none" >
     <!-- Static navbar -->
     <nav class="navbar navbar-default">
 
@@ -71,13 +71,13 @@
 
                 <div data-bind="visible: !isAuth()" class="navbar-brand">
                     <div>
-                        <a href="javascript:signInViaOauth('google')" class="btn btn-social-icon btn-google">
+                        <a href="javascript:PageInterface.auth.signInViaOauth('google')" class="btn btn-social-icon btn-google">
                             <span class="fa fa-google"></span>
                         </a>
-                        <a href="javascript:signInViaOauth('facebook')" class="btn btn-social-icon btn-facebook">
+                        <a href="javascript:PageInterface.auth.signInViaOauth('facebook')" class="btn btn-social-icon btn-facebook">
                             <span class="fa fa-facebook"></span>
                         </a>
-                        <a href="javascript:signInViaOauth('instagram')" class="btn btn-social-icon btn-instagram">
+                        <a href="javascript:PageInterface.auth.signInViaOauth('instagram')" class="btn btn-social-icon btn-instagram">
                             <span class="fa fa-instagram"></span>
                         </a>
                     </div>
@@ -111,7 +111,7 @@
                 </div>
                 <div id="areaUser" style="display: none" data-bind="visible: isAuth()" >
                     <ul class="nav navbar-nav navbar-right">
-                        <li ><a href="javascript:logOut();">[Logout]</a></span>
+                        <li ><a data-bind="click: logout">[Logout]</a></span>
                         </li>
                     </ul>
                 </div>
@@ -131,275 +131,12 @@
                 bbhash:[<b data-bind="text: bbhash"></b>] [<a href="javascript:vm.reset();">r</a>]</p>
         </div>
     </footer>
+
 </div> <!-- /container -->
-
-
+<div id="external_templates"></div>
 <script src = "js/js-bloombees.js" _src="https://bloombees-googlestorage-7pxvh1vxhs.netdna-ssl.com/bloombees-public/static/js/js-bloombees.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.2/knockout-min.js" integrity="sha256-owX7sroiO/O1a7h3a4X29A1g3QgqdNvijRQ7V5TH45M=" crossorigin="anonymous"></script>
-<script type="text/html" id="homeTemplate">
-    <div id="homePage" class="jumbotron" style="display: none" data-bind="visible: !isAuth()" >
-        <h1>js-bloombes</h1>
-        <p>This example is a quick exercise to illustrate how js-bloombees is used.</p>
-        <p>
-            <a class="btn btn-lg btn-primary" href="https://github.com/BLOOMBEES/js-bloombees" role="button">View github &raquo;</a>
-        </p>
-    </div>
-
-    <div id="authPage" class="jumbotron" style="display: none" data-bind="visible: isAuth()" >
-        <div id="userSocialNetworks" data-bind="foreach: socialNetworks">
-            <a data-bind="attr: {href: 'javascript:connectSocialNetwork(\''+sn+'\')', class: 'btn btn-social-icon btn-'+sn+((active)?'':' btn-default') }" ><span data-bind="attr: {class: 'fa fa-'+sn}"></span></a>
-        </div>
-        <h1>Auth user</h1>
-    </div>
-</script>
-<script>
-
-    // Signin module using Jquery.validator
-    $('#signin').validator().on('submit', function (e) {
-        if (e.isDefaultPrevented()) {
-            // handle the invalid form...
-        } else {
-            vm.initLoading(true);
-            Bloombees.login({email:vm.loginEmail(),password:vm.loginPassword()},function(response) {
-                if(!response.success) {
-                    vm.reset();
-                    alertMsg('Error','User does not exist','type-warning');
-                } else {
-                    Core.bind([readConnectedSocialNetworks],function() {
-                        vm.reset();
-                    });
-                }
-            });
-            return false;
-        }
-    });
-
-    // Get socialnetworks
-    function signInViaOauth(social) {
-        vm.initLoading(true);
-        Core.oauthpopup({
-            path: Core.config.get('bloombeesOauth')+'/'+social+'?ret='+Core.url.parts('origin')+Core.url.parts('pathname')+'?oauth={id}',
-            callback: function()
-            {
-                var oauth_id = Core.cookies.get('oauth');
-                if(oauth_id) {
-                    console.log(oauth_id);
-                    Core.cookies.remove('oauth');
-                    Bloombees.oauth(oauth_id,function(response) {
-                        if(!response.success) {
-                            alertMsg('Error',JSON.stringify(response.errors),'type-warning');
-                            vm.reset();
-                        } else {
-                            Core.bind([readConnectedSocialNetworks],function() {
-                                vm.reset();
-                            });
-                        }
-                    });
-
-                    //do callback stuff
-                } else {
-                    vm.reset();
-                }
-            }
-        });
-    }
-
-    // Javascript logout
-    function logOut() {
-        vm.initLoading(true);
-        Bloombees.logout(function(){
-            vm.reset();
-        });
-    }
-
-    // Connect or disconnect social networks for an Authenticated user.
-    function connectSocialNetwork(social) {
-        var socialnetworks= vm.availableSocialNetWorks;
-        if(typeof socialnetworks == 'undefined' || typeof socialnetworks[social] == undefined) {
-            Core.error.add('connectedSocialNetworks','missing socialnetworks or '+social);
-            return;
-        }
-        // Url to connect
-        if(socialnetworks[social].active) {
-            if(confirm('Are you sure about disconnect '+social)) {
-                vm.initLoading(true);
-                if(Bloombees.debug) Core.log.printDebug("connectSocialNetwork: disconnecting "+social+': '+socialnetworks[social].id);
-                Bloombees.disconnectUserSocialNetwork(socialnetworks[social].id,function(response) {
-                    if(!response.success) {
-                        alertMsg('Error',response.errors[0],'type-warning');
-                        vm.reset();
-                    } else {
-                        Core.bind([readConnectedSocialNetworks],function() {
-                            vm.reset();
-                        });
-                    }
-                });
-            }
-
-        } else {
-            if(confirm('Are you sure about connect '+social)) {
-                vm.initLoading(true);
-                Core.oauthpopup({
-                    path: Core.config.get('bloombeesOauth')+'/'+social+'?ret='+Core.url.parts('origin')+Core.url.parts('pathname')+'?oauthconnect={id}',
-                    callback: function()
-                    {
-                        var oauth_id = Core.cookies.get('oauthconnect');
-                        if(oauth_id) {
-                            console.log(oauth_id);
-                            Core.cookies.remove('oauthconnect');
-                            if(Bloombees.debug) Core.log.printDebug("connectSocialNetwork: connecting "+social+': '+oauth_id);
-                            Bloombees.connectUserSocialNetwork(oauth_id,function(response) {
-                                if(!response.success) {
-                                    alertMsg('Error',response.errors[0],'type-warning');
-                                    vm.reset();
-                                } else {
-                                    Core.bind([readConnectedSocialNetworks],function() {
-                                        vm.reset();
-                                    });
-                                }
-                            });
-
-                            //do callback stuff
-                        } else {
-                            vm.reset();
-                        }
-                    }
-                });
-
-            }
-        }
-
-    }
-
-    // Read Connected social networks associated to an user. The result will be stored in: Core.data.set('connectedSocialNetworks',..);
-    function readConnectedSocialNetworks(resolve,reject) {
-        Core.data.set('connectedSocialNetworks',[]);
-        if(Core.user.isAuth()) {
-            // Read
-            Bloombees.getUserSocialNetworks(function(response) {
-                if(response.success) {
-                    Core.data.set('connectedSocialNetworks',response.data.SocialNetworks);
-                    if(Bloombees.debug) Core.log.printDebug("Core.data.set('connectedSocialNetworks',response.data.SocialNetworks) executed");
-                }
-                resolve();
-            },true);
-        } else {
-            resolve();
-        }
-    }
-
-    // Alert Helper
-    function alertMsg(title,msg,type) {
-        if(typeof type=='undefined') type = 'type-default';
-        BootstrapDialog.show({
-            title: title,
-            message: msg,
-            type: type
-        });
-    }
-    // VIEW MODEL FOR THE PAGE.
-    var BloombeesModel = function () {
-        var self = this;
-        self.init = false;
-        self.initLoading = ko.observable(true);
-        self.isAuth = ko.observable(Bloombees.isAuth());
-        self.userData = ko.observable({Store_uniqueId: Core.user.info['Store_uniqueId']});
-
-        self.loadHomeTemplate = function() {
-            if(self.isAuth ) {
-                return('/directives/auth/home.htm');
-            } else {
-                return('/directives/noauth/home.htm');
-
-            }
-        }
-
-        // About social networks
-        // -- DRAW Social Networks.
-        // Transform and update socialNetworks based on Core.data.et('connectedSocialNetworks')
-        self.socialNetworks = ko.observable([]);
-        self.availableSocialNetWorks = {google:{active:false,id:null},facebook:{active:false,id:null},instagram:{active:false,id:null},twitter:{active:false,id:null},pinterest:{active:false,id:null},linkedin:{active:false,id:null},vk:{active:false,id:null}};
-
-        self.drawSocialNetworksConnected = function() {
-
-            // Reset in each call
-            for (k in self.availableSocialNetWorks) {
-                self.availableSocialNetWorks[k].active = false;
-                self.availableSocialNetWorks[k].id = null;
-            }
-
-            // See current connected SocialNetworks
-            var connectedSocialNetworks = Core.data.get('connectedSocialNetworks');
-            if(Core.user.isAuth() && typeof connectedSocialNetworks =='object' && connectedSocialNetworks.length) {
-                // loop all the social networks to update it.
-                for(k in connectedSocialNetworks) {
-                    sn = connectedSocialNetworks[k].SocialNetwork_name.toLowerCase();
-                    id = connectedSocialNetworks[k].SocialNetwork_id;
-                    if(typeof self.availableSocialNetWorks[sn] != 'undefined') {
-                        self.availableSocialNetWorks[sn].active = true;
-                        self.availableSocialNetWorks[sn].id = id;
-                    }
-                }
-            } else {
-                Core.error.add('BloombeesModel.socialNetworksConnected: Error of programing. This condition should not happen');
-            }
-
-            // Transform data to be printed
-            snArray = [];
-            for(k in self.availableSocialNetWorks) {
-                snArray.push({sn:k,active:self.availableSocialNetWorks[k].active})
-            }
-            self.socialNetworks(snArray);
-
-        }
-
-        self.bottomData = ko.observable({ bloombeesAPI: Core.config.get('bloombeesAPI'), bbtoken: Core.user.getCookieValue(), bbhash: Core.cookies.get(Bloombees.cookieNameForHash)});
-        // Reset all the components based on the values
-        self.reset = function() {
-            self.isAuth(Bloombees.isAuth());
-            self.userData({Store_uniqueId: Core.user.info['Store_uniqueId']});
-            self.bottomData({bloombeesAPI: Core.config.get('bloombeesAPI'),bbtoken:Core.user.getCookieValue(),bbhash:Core.cookies.get(Bloombees.cookieNameForHash)});
-            self.drawSocialNetworksConnected();
-            self.initLoading(false);
-        }
-
-        // Login/password
-        self.loginEmail = ko.observable();
-        self.loginPassword = ko.observable();
-
-    };
-    var vm = null; //ViewModel for the app
-
-    Bloombees.debug = true;
-    // Control of auth
-    if(oauth = Core.url.formParams('oauth')) {
-        window.focus();
-        Core.cookies.set('oauth',oauth);
-        window.close();
-    } if(oauthconnect = Core.url.formParams('oauthconnect')) {
-        window.focus();
-        Core.cookies.set('oauthconnect',oauthconnect);
-        window.close();
-    } else {
-        Bloombees.init(function () {
-            Core.bind([readConnectedSocialNetworks], function () {
-                // Do the binds
-                try {
-                    vm = new BloombeesModel();
-                    ko.applyBindings(vm);
-                    if (Core.user.isAuth()) vm.drawSocialNetworksConnected();
-
-                    vm.initLoading(false);
-
-                } catch (err) {
-                    console.log(err);
-                }
-            });
-        });
-    }
-
-
-
-</script>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

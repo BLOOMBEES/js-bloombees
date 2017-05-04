@@ -1,0 +1,14 @@
+<div id="homePage" class="jumbotron" style="display: none" data-bind="visible: !isAuth()" >
+    <h1>js-bloombes</h1>
+    <p>This example is a quick exercise to illustrate how js-bloombees is used.</p>
+    <p>
+        <a class="btn btn-lg btn-primary" href="https://github.com/BLOOMBEES/js-bloombees" role="button">View github &raquo;</a>
+    </p>
+</div>
+
+<div id="authPage" class="jumbotron" style="display: none" data-bind="visible: isAuth()" >
+    <div id="userSocialNetworks" data-bind="foreach: socialNetworks">
+        <a data-bind="attr: {href: 'javascript:connectSocialNetwork(\''+sn+'\')', class: 'btn btn-social-icon btn-'+sn+((active)?'':' btn-default') }" ><span data-bind="attr: {class: 'fa fa-'+sn}"></span></a>
+    </div>
+    <h1>Auth user</h1>
+</div>
