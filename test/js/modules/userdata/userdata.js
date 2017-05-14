@@ -22,7 +22,7 @@ if(typeof PageInterface!='undefined') {
                     module.userdataApp.controller('userdataController', function($scope) {
                         //$scope.User = Core.data.get('getUserData').data.User;
                         $scope.User = Core.data.get('getUserData').data.User;
-                        //console.log(Core.data.get('getUserData').data.User);
+                        $scope.UserEditFields = [];
                     });
                     angular.bootstrap(document.getElementById('userdata.js'),['userdataApp']);
                 },true);
