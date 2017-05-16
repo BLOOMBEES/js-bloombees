@@ -1,4 +1,6 @@
 Bloombees = new function () {
+
+
     // Config vars
     this.version = '1.0.8';
     this.debug = true;
@@ -124,6 +126,7 @@ Bloombees = new function () {
 
     // Login with userpassword
     this.login = function(data,callback) {
+        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.login calling: /auth/userpassword');
         Core.request.call({url:'/auth/userpassword',params:data,method:'POST'},function (response) {
             if(Core.user.isAuth()) Core.user.setAuth(false);
             if(response.success) {
@@ -131,7 +134,7 @@ Bloombees = new function () {
                 if(Core.user.setAuth(true)) {
                     Core.request.token = Core.user.getCookieValue();
                     Core.user.add(response.data);
-                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Added user info: '+JSON.stringify(response.data));
+                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.login added user info: '+JSON.stringify(response.data));
                 } else {
                     Bloombees.error('Bloombees.login','Error in Core.user.setAuth(true)');
                 }
@@ -144,13 +147,14 @@ Bloombees = new function () {
 
     // Execute an oauth based on a Bloombees oauth id
     this.oauth = function(oauth_id,callback) {
+        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.oauth calling: /auth/oauthservice');
         Core.request.call({url:'/auth/oauthservice',params:{id:oauth_id},method:'POST'},function (response) {
             if(response.success) {
                 Core.cookies.set(Bloombees.cookieNameForToken,response.data.dstoken);
                 if(Core.user.setAuth(true)) {
                     Core.request.token = Core.user.getCookieValue();
                     Core.user.add(response.data);
-                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Added user info: '+JSON.stringify(response.data));
+                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.oauth added user info: '+JSON.stringify(response.data));
                 } else {
                     Bloombees.error('Bloombees.oauth','Error in Core.user.setAuth(true)');
                 }
@@ -170,6 +174,7 @@ Bloombees = new function () {
     this.logout = function(callback) {
         // Reset Bloombees Data
         if(Core.user.isAuth()) {
+            if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.logout calling: /auth/deactivate/dstoken');
             Core.request.call({url:'/auth/deactivate/dstoken',method:'PUT'},function (response) {
                 if(response.success) {
                     //---
@@ -193,6 +198,31 @@ Bloombees = new function () {
     // Return the token from Cookies with name: this.cookieNameForHash
     this.getHash = function() {return(Core.cookies.get(Bloombees.cookieNameForHash) || '')};
 
+
+    // Return current info about the user
+    this.getUserData = function(callback,reload) {
+
+        if(!Bloombees.isAuth()) {
+            Bloombees.error('Bloombees.getUserData','user is not authenticated.');
+            callback({success:false,error:['User is not authenticated in the frontend. Avoiding call']});
+            return;
+        }
+
+        var data = Core.data.get('getUserData');
+        if(typeof data == 'undefined' || reload) {
+            Core.data.set('getUserData',{success:false});
+            if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.getUserData calling: /manage/users/'+Core.user.get('User_id'));
+            Core.request.call({url:'/manage/users/'+Core.user.get('User_id'),method:'GET'},function (response) {
+                if(response.success) {
+                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.getUserData added info: '+"Core.data.set('getUserData',response);");
+                    Core.data.set('getUserData',response);
+                }
+                callback(response);
+            });
+        } else {
+            callback(data);
+        }
+    }
 
     // Return current socialNetWorks
     this.getUserSocialNetworks = function(callback,reload) {

@@ -1,0 +1,7 @@
+<div id="userdata.js">
+    <div ng-controller="userdataController">
+        <p ng-repeat="(key, value) in User">
+        {{ key }}: <input type="text" data-ng-model="User[key]">
+        </p>
+    </div>
+</div>
