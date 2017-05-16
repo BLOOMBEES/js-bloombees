@@ -211,7 +211,7 @@ PageInterface = new function() {
         var module = this;
         module.loadScripts = function (script,callback) {
             Core.dynamic.load({
-                script:{url:'/js/modules/'+script+'/'+script+'.js'}
+                script:{url:'/js/modules/'+script+'/'+script+'.js?v1'}
             },function(){
                 if(typeof PageInterface[script] == 'undefined') {
                     PageInterface.error('loading /js/modules/'+script+'/'+script+'.js');
