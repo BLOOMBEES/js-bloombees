@@ -1129,8 +1129,7 @@ if (typeof define === 'function' && define.amd) {
 })(typeof self !== 'undefined' ? self : this);
 
 Core = new function () {
-
-    this.version = '1.1.6';
+    this.version = '1.1.8';
     this.debug = false;
     this.authActive = false;
     this.authCookieName = 'cfauth';
@@ -1996,7 +1995,7 @@ Core = new function () {
                 if(typeof data.template.object == 'string')  object = data.template.object;
                 if(typeof data.template.id == 'string')  id = data.template.id;
                 if(typeof data.template.type == 'string')  type = data.template.type;
-                if(typeof data.template.dom == object)  dom = data.template.dom;
+                if(typeof data.template.dom == 'object')  dom = data.template.dom;
             }
             if(url=='') {
                 Core.error.add('Core.dynamic.loadTemplate(data,callback) Missing a right value for data. use {template:url}');
@@ -2098,7 +2097,7 @@ Core = new function () {
 
 Bloombees = new function () {
     // Config vars
-    this.version = '1.0.7';
+    this.version = '1.0.8';
     this.debug = true;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -2415,6 +2414,21 @@ Bloombees = new function () {
             return;
         }
         Core.request.call({url:'/socialnetworks/connections/'+Core.user.get('User_id')+'/'+social_id,method:'DELETE'},function (response) {
+            callback(response);
+        });
+    }
+
+    // callMeNow
+    this.callMeNow = function(data,callback) {
+
+        if(typeof data['Contact_name']=='undefined') return(Bloombees.error('Bloombees.callMeNow missing Contact_name'));
+        if(typeof data['Contact_phone']=='undefined') return(Bloombees.error('Bloombees.callMeNow missing Contact_phone'));
+        if(typeof data['Contact_sourceType']=='undefined') return(Bloombees.error('Bloombees.callMeNow missing Contact_sourceType'));
+        if(typeof data['Contact_sourceSection']=='undefined') return(Bloombees.error('Bloombees.callMeNow missing Contact_sourceSection'));
+        if(typeof data['Contact_lang']=='undefined') return(Bloombees.error('Bloombees.callMeNow missing Contact_lang'));
+
+        Core.debug=true;
+        Core.request.call({url:'/forms/callmenow',method:'POST',params:data},function (response) {
             callback(response);
         });
     }
