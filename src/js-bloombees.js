@@ -2,7 +2,7 @@ Bloombees = new function () {
 
 
     // Config vars
-    this.version = '1.0.9';
+    this.version = '1.1.0';
     this.debug = true;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -176,6 +176,31 @@ Bloombees = new function () {
                 }
             } else {
                 Bloombees.error('Bloombees.login',response);
+            }
+            callback(response);
+        });
+    }
+
+
+
+    // Login with userpassword
+    this.signUp = function(data,callback) {
+        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUp calling: /register/user');
+        Core.request.call({url:'/register/user',params:data,method:'POST'},function (response) {
+            if(Core.user.isAuth()) Core.user.setAuth(false);
+            if(response.success) {
+                if(typeof response.data.dstoken!='undefined') {
+                    Core.cookies.set(Bloombees.cookieNameForToken,response.data.dstoken);
+                    if(Core.user.setAuth(true)) {
+                        Core.request.token = Core.user.getCookieValue();
+                        Core.user.add(response.data);
+                        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUp added user info: '+JSON.stringify(response.data));
+                    } else {
+                        Bloombees.error('Bloombees.signUp','Error in Core.user.setAuth(true)');
+                    }
+                }
+            } else {
+                Bloombees.error('Bloombees.signUp',response);
             }
             callback(response);
         });
