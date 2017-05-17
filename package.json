@@ -1,6 +1,6 @@
 {
   "name": "js-bloombees",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "A JS Core library to speed up app the development of bloombees integration",
   "main": "src/js-bloombees.js",
   "directories": {

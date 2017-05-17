@@ -2096,8 +2096,10 @@ Core = new function () {
 };
 
 Bloombees = new function () {
+
+
     // Config vars
-    this.version = '1.0.8';
+    this.version = '1.0.9';
     this.debug = true;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -2108,6 +2110,7 @@ Bloombees = new function () {
     this.data = {};
     this.hashActive = false;                        // Generate a hash to allow backend doing calls
     this.authActive = true;                        // Generate a hash to allow backend doing calls
+    this.refreshCacheHours = 24;
 
     Core.authCookieName = this.cookieNameForToken;  // Asign the local name of the cookie for auth
     Core.authActive = this.authActive;              // Let's active the authorization mode
@@ -2128,15 +2131,50 @@ Bloombees = new function () {
         Core.request.key = Bloombees.webKey;                 // Default calls by default
 
         // Activate check Bloombees Methods
-        var initFunctions = [];
+        var initFunctions = [Bloombees.checkConfigData];
         if(Bloombees.authActive) initFunctions.push(Bloombees.checkDSToken);
         if(Bloombees.hashActive) initFunctions.push(Bloombees.checkHashCookie);
 
         // initiating Core.
         Core.init(initFunctions,function(response) {
             if(!response.success) Bloombees.error('Bloombees.init has returned with error');
+            //console.log(Bloombees.data);
             if(typeof callback =='function') callback();
         });
+
+    }
+
+    // checkDataHelpers read data general info to be used in other applications like: countries, currencies etc..
+    this.checkConfigData = function(resolve) {
+        Bloombees.data = Core.cache.get('BloombeesConfigData');
+
+        // Evaluate refresh cache
+        if(typeof Bloombees.data =='object' && typeof Bloombees.data['timestamp']=='number' && !Core.url.formParams('_reloadBloombeesCache')) {
+            var date = new Date();
+            var cacheHours = (date.getTime()-Bloombees.data['timestamp'])/(1000*3600); // Number of hours since last cache
+            if(cacheHours>=Bloombees.refreshCacheHours) {
+                Bloombees.data = null;
+                console.log('Refresing cache');
+            }
+        }
+
+        if(Bloombees.data == null || Core.url.formParams('_reloadBloombeesCache')) {
+            Bloombees.getConfigData(function(response) {
+                if(response.success) {
+                    Bloombees.data = response.data;
+                    var date = new Date();
+                    Bloombees.data['timestamp'] = date.getTime();
+                    Core.cache.set('BloombeesConfigData',Bloombees.data);
+
+                } else {
+                    Bloombees.error('checkConfigData');
+                }
+                resolve();
+            });
+        } else {
+            if(Bloombees.debug) Core.log.printDebug('Bloombees.checkConfigData readed from cache into Bloombees.data');
+            resolve();
+        }
     }
 
     // CheckDSToken if it exist.. It has to be call with resolve. Normally called from .init
@@ -2221,6 +2259,7 @@ Bloombees = new function () {
 
     // Login with userpassword
     this.login = function(data,callback) {
+        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.login calling: /auth/userpassword');
         Core.request.call({url:'/auth/userpassword',params:data,method:'POST'},function (response) {
             if(Core.user.isAuth()) Core.user.setAuth(false);
             if(response.success) {
@@ -2228,7 +2267,7 @@ Bloombees = new function () {
                 if(Core.user.setAuth(true)) {
                     Core.request.token = Core.user.getCookieValue();
                     Core.user.add(response.data);
-                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Added user info: '+JSON.stringify(response.data));
+                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.login added user info: '+JSON.stringify(response.data));
                 } else {
                     Bloombees.error('Bloombees.login','Error in Core.user.setAuth(true)');
                 }
@@ -2241,13 +2280,14 @@ Bloombees = new function () {
 
     // Execute an oauth based on a Bloombees oauth id
     this.oauth = function(oauth_id,callback) {
+        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.oauth calling: /auth/oauthservice');
         Core.request.call({url:'/auth/oauthservice',params:{id:oauth_id},method:'POST'},function (response) {
             if(response.success) {
                 Core.cookies.set(Bloombees.cookieNameForToken,response.data.dstoken);
                 if(Core.user.setAuth(true)) {
                     Core.request.token = Core.user.getCookieValue();
                     Core.user.add(response.data);
-                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Added user info: '+JSON.stringify(response.data));
+                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.oauth added user info: '+JSON.stringify(response.data));
                 } else {
                     Bloombees.error('Bloombees.oauth','Error in Core.user.setAuth(true)');
                 }
@@ -2267,6 +2307,7 @@ Bloombees = new function () {
     this.logout = function(callback) {
         // Reset Bloombees Data
         if(Core.user.isAuth()) {
+            if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.logout calling: /auth/deactivate/dstoken');
             Core.request.call({url:'/auth/deactivate/dstoken',method:'PUT'},function (response) {
                 if(response.success) {
                     //---
@@ -2290,6 +2331,48 @@ Bloombees = new function () {
     // Return the token from Cookies with name: this.cookieNameForHash
     this.getHash = function() {return(Core.cookies.get(Bloombees.cookieNameForHash) || '')};
 
+    // Return current info about the user
+    this.getConfigData = function(callback,reload) {
+        var data = Core.data.get('getConfigData');
+        if(typeof data == 'undefined' || reload) {
+            Core.data.set('getConfigData',{success:false});
+            if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.getConfigData calling: /data/info');
+            Core.request.call({url:'/data/info',method:'GET'},function (response) {
+                if(response.success) {
+                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.getConfigData added info: '+"Core.data.set('getConfigData',response);");
+                    Core.data.set('getConfigData',response);
+                }
+                callback(response);
+            });
+        } else {
+            callback(data);
+        }
+    }
+
+    // Return current info about the user
+    this.getUserData = function(callback,reload) {
+
+        if(!Bloombees.isAuth()) {
+            Bloombees.error('Bloombees.getUserData','user is not authenticated.');
+            callback({success:false,error:['User is not authenticated in the frontend. Avoiding call']});
+            return;
+        }
+
+        var data = Core.data.get('getUserData');
+        if(typeof data == 'undefined' || reload) {
+            Core.data.set('getUserData',{success:false});
+            if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.getUserData calling: /manage/users/'+Core.user.get('User_id'));
+            Core.request.call({url:'/manage/users/'+Core.user.get('User_id'),method:'GET'},function (response) {
+                if(response.success) {
+                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.getUserData added info: '+"Core.data.set('getUserData',response);");
+                    Core.data.set('getUserData',response);
+                }
+                callback(response);
+            });
+        } else {
+            callback(data);
+        }
+    }
 
     // Return current socialNetWorks
     this.getUserSocialNetworks = function(callback,reload) {

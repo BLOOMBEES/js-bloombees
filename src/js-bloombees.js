@@ -2,7 +2,7 @@ Bloombees = new function () {
 
 
     // Config vars
-    this.version = '1.0.8';
+    this.version = '1.0.9';
     this.debug = true;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -13,6 +13,7 @@ Bloombees = new function () {
     this.data = {};
     this.hashActive = false;                        // Generate a hash to allow backend doing calls
     this.authActive = true;                        // Generate a hash to allow backend doing calls
+    this.refreshCacheHours = 24;
 
     Core.authCookieName = this.cookieNameForToken;  // Asign the local name of the cookie for auth
     Core.authActive = this.authActive;              // Let's active the authorization mode
@@ -33,15 +34,50 @@ Bloombees = new function () {
         Core.request.key = Bloombees.webKey;                 // Default calls by default
 
         // Activate check Bloombees Methods
-        var initFunctions = [];
+        var initFunctions = [Bloombees.checkConfigData];
         if(Bloombees.authActive) initFunctions.push(Bloombees.checkDSToken);
         if(Bloombees.hashActive) initFunctions.push(Bloombees.checkHashCookie);
 
         // initiating Core.
         Core.init(initFunctions,function(response) {
             if(!response.success) Bloombees.error('Bloombees.init has returned with error');
+            //console.log(Bloombees.data);
             if(typeof callback =='function') callback();
         });
+
+    }
+
+    // checkDataHelpers read data general info to be used in other applications like: countries, currencies etc..
+    this.checkConfigData = function(resolve) {
+        Bloombees.data = Core.cache.get('BloombeesConfigData');
+
+        // Evaluate refresh cache
+        if(typeof Bloombees.data =='object' && typeof Bloombees.data['timestamp']=='number' && !Core.url.formParams('_reloadBloombeesCache')) {
+            var date = new Date();
+            var cacheHours = (date.getTime()-Bloombees.data['timestamp'])/(1000*3600); // Number of hours since last cache
+            if(cacheHours>=Bloombees.refreshCacheHours) {
+                Bloombees.data = null;
+                console.log('Refresing cache');
+            }
+        }
+
+        if(Bloombees.data == null || Core.url.formParams('_reloadBloombeesCache')) {
+            Bloombees.getConfigData(function(response) {
+                if(response.success) {
+                    Bloombees.data = response.data;
+                    var date = new Date();
+                    Bloombees.data['timestamp'] = date.getTime();
+                    Core.cache.set('BloombeesConfigData',Bloombees.data);
+
+                } else {
+                    Bloombees.error('checkConfigData');
+                }
+                resolve();
+            });
+        } else {
+            if(Bloombees.debug) Core.log.printDebug('Bloombees.checkConfigData readed from cache into Bloombees.data');
+            resolve();
+        }
     }
 
     // CheckDSToken if it exist.. It has to be call with resolve. Normally called from .init
@@ -198,6 +234,23 @@ Bloombees = new function () {
     // Return the token from Cookies with name: this.cookieNameForHash
     this.getHash = function() {return(Core.cookies.get(Bloombees.cookieNameForHash) || '')};
 
+    // Return current info about the user
+    this.getConfigData = function(callback,reload) {
+        var data = Core.data.get('getConfigData');
+        if(typeof data == 'undefined' || reload) {
+            Core.data.set('getConfigData',{success:false});
+            if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.getConfigData calling: /data/info');
+            Core.request.call({url:'/data/info',method:'GET'},function (response) {
+                if(response.success) {
+                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.getConfigData added info: '+"Core.data.set('getConfigData',response);");
+                    Core.data.set('getConfigData',response);
+                }
+                callback(response);
+            });
+        } else {
+            callback(data);
+        }
+    }
 
     // Return current info about the user
     this.getUserData = function(callback,reload) {
