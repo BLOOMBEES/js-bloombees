@@ -1,9 +1,7 @@
 Bloombees = new function () {
-
-
     // Config vars
-    this.version = '1.1.0';
-    this.debug = true;
+    this.version = '1.1.1';
+    this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
     this.webKey = Core.config.get('bloombeesWebKey') || 'Development';
@@ -20,6 +18,7 @@ Bloombees = new function () {
     Core.request.base = this.apiUrl;                // Default calls by default
     Core.request.key = this.webKey;                 // Default calls by default
     Core.debug = false;
+
 
     // ------------------
     // Init Bloombees App
@@ -41,10 +40,8 @@ Bloombees = new function () {
         // initiating Core.
         Core.init(initFunctions,function(response) {
             if(!response.success) Bloombees.error('Bloombees.init has returned with error');
-            //console.log(Bloombees.data);
             if(typeof callback =='function') callback();
         });
-
     }
 
     // checkDataHelpers read data general info to be used in other applications like: countries, currencies etc..
@@ -52,16 +49,18 @@ Bloombees = new function () {
         Bloombees.data = Core.cache.get('BloombeesConfigData');
 
         // Evaluate refresh cache
-        if(typeof Bloombees.data =='object' && typeof Bloombees.data['timestamp']=='number' && !Core.url.formParams('_reloadBloombeesCache')) {
+
+        if((typeof Bloombees.data == 'object') && (typeof Bloombees.data['timestamp']=='number') && !Core.url.formParams('_reloadBloombeesCache')) {
             var date = new Date();
             var cacheHours = (date.getTime()-Bloombees.data['timestamp'])/(1000*3600); // Number of hours since last cache
-            if(cacheHours>=Bloombees.refreshCacheHours) {
+            if(cacheHours >= Bloombees.refreshCacheHours) {
                 Bloombees.data = null;
                 console.log('Refresing cache');
             }
         }
 
-        if(Bloombees.data == null || Core.url.formParams('_reloadBloombeesCache')) {
+
+        if((Bloombees.data == null) || Core.url.formParams('_reloadBloombeesCache')) {
             Bloombees.getConfigData(function(response) {
                 if(response.success) {
                     Bloombees.data = response.data;
@@ -113,8 +112,9 @@ Bloombees = new function () {
 
     // checkHashCookie if it exist.. if not, it generates a new one. . Normally called from .init
     this.checkHashCookie = function(resolve) {
+
         var cookie = Core.cookies.get(Bloombees.cookieNameForHash);
-        console.log();
+        console.log(cookie);
         if(typeof cookie =='undefined' || !cookie ) {
             if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.checkHashCookie(resolve) Getting the hash from: /auth/hash');
             Core.request.call({url:'/auth/hash',method:'GET'},function (response) {

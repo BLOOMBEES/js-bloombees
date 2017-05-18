@@ -1129,7 +1129,7 @@ if (typeof define === 'function' && define.amd) {
 })(typeof self !== 'undefined' ? self : this);
 
 Core = new function () {
-    this.version = '1.1.8';
+    this.version = '1.1.9';
     this.debug = false;
     this.authActive = false;
     this.authCookieName = 'cfauth';
@@ -1427,11 +1427,32 @@ Core = new function () {
                 endpoint = payload['base']+endpoint;
             }
 
-            // Mode of the call
-            if(typeof payload['mode'] == 'undefined') payload['mode'] = 'cors';
+            // Mode of the call: cors, no-cors, same-origin
+            if(typeof payload['mode'] == 'undefined') {
+                payload['mode'] = 'cors';
+            }
+            else {
+                if((payload['mode']!='cors') && (payload['mode']!='no-cors') && (payload['mode']!='same-origin'))
+                    payload['credentials'] = 'cors';
+            }
 
-            // Credentials of the call: include, same-origin, none
-            if(typeof payload['credentials'] == 'undefined') payload['credentials'] = 'none';
+            // Credentials of the call: include, same-origin, omit.. other value crash on mobile browsers
+            if(typeof payload['credentials'] == 'undefined') {
+                payload['credentials'] = 'omit';
+            }
+            else {
+                if((payload['credentials']!='include') && (payload['credentials']!='same-origin'))
+                    payload['credentials'] = 'omit';
+            }
+
+            // cache for the call: default, no-store, reload, no-cache, force-cache, or only-if-cached
+            if(typeof payload['cache'] == 'undefined') {
+                payload['cache'] = 'default';
+            }
+            else {
+                if((payload['cache']!='no-store') && (payload['cache']!='reload') && (payload['cache']!='no-cache') && (payload['cache']!='force-cache') && (payload['cache']!='only-if-cached'))
+                    payload['cache'] = 'default';
+            }
 
             if(typeof payload['params'] == 'undefined') payload['params'] = {};
 
@@ -1472,6 +1493,7 @@ Core = new function () {
                 method: payload['method'],
                 headers: payload.headers,
                 mode:payload['mode'] ,
+                cache:payload['cache'] ,
                 credentials: payload['credentials']
             };
 
@@ -2096,11 +2118,9 @@ Core = new function () {
 };
 
 Bloombees = new function () {
-
-
     // Config vars
-    this.version = '1.1.0';
-    this.debug = true;
+    this.version = '1.1.1';
+    this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
     this.webKey = Core.config.get('bloombeesWebKey') || 'Development';
@@ -2117,6 +2137,7 @@ Bloombees = new function () {
     Core.request.base = this.apiUrl;                // Default calls by default
     Core.request.key = this.webKey;                 // Default calls by default
     Core.debug = false;
+
 
     // ------------------
     // Init Bloombees App
@@ -2138,10 +2159,8 @@ Bloombees = new function () {
         // initiating Core.
         Core.init(initFunctions,function(response) {
             if(!response.success) Bloombees.error('Bloombees.init has returned with error');
-            //console.log(Bloombees.data);
             if(typeof callback =='function') callback();
         });
-
     }
 
     // checkDataHelpers read data general info to be used in other applications like: countries, currencies etc..
@@ -2149,16 +2168,18 @@ Bloombees = new function () {
         Bloombees.data = Core.cache.get('BloombeesConfigData');
 
         // Evaluate refresh cache
-        if(typeof Bloombees.data =='object' && typeof Bloombees.data['timestamp']=='number' && !Core.url.formParams('_reloadBloombeesCache')) {
+
+        if((typeof Bloombees.data == 'object') && (typeof Bloombees.data['timestamp']=='number') && !Core.url.formParams('_reloadBloombeesCache')) {
             var date = new Date();
             var cacheHours = (date.getTime()-Bloombees.data['timestamp'])/(1000*3600); // Number of hours since last cache
-            if(cacheHours>=Bloombees.refreshCacheHours) {
+            if(cacheHours >= Bloombees.refreshCacheHours) {
                 Bloombees.data = null;
                 console.log('Refresing cache');
             }
         }
 
-        if(Bloombees.data == null || Core.url.formParams('_reloadBloombeesCache')) {
+
+        if((Bloombees.data == null) || Core.url.formParams('_reloadBloombeesCache')) {
             Bloombees.getConfigData(function(response) {
                 if(response.success) {
                     Bloombees.data = response.data;
@@ -2210,8 +2231,9 @@ Bloombees = new function () {
 
     // checkHashCookie if it exist.. if not, it generates a new one. . Normally called from .init
     this.checkHashCookie = function(resolve) {
+
         var cookie = Core.cookies.get(Bloombees.cookieNameForHash);
-        console.log();
+        console.log(cookie);
         if(typeof cookie =='undefined' || !cookie ) {
             if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.checkHashCookie(resolve) Getting the hash from: /auth/hash');
             Core.request.call({url:'/auth/hash',method:'GET'},function (response) {
