@@ -1,6 +1,6 @@
 Bloombees = new function () {
     // Config vars
-    this.version = '1.1.3';
+    this.version = '1.1.4';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -288,6 +288,14 @@ Bloombees = new function () {
     this.signUpCodeAvailability = function(code,callback) {
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpCodeAvailability calling: /register/availability/code/{code}');
         Core.request.call({url:'/register/availability/code/'+code,method:'GET'},function (response) {
+            callback(response);
+        });
+    }
+
+    // Check if a code available for signup
+    this.signUpUniqueIdAvailability = function(unique_id,callback) {
+        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpUniqueIdAvailability calling: /register/availability/store/{unique_id}');
+        Core.request.call({url:'/register/availability/store/'+unique_id,method:'GET'},function (response) {
             callback(response);
         });
     }
