@@ -1,6 +1,6 @@
 Bloombees = new function () {
     // Config vars
-    this.version = '1.1.2';
+    this.version = '1.1.3';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -33,7 +33,7 @@ Bloombees = new function () {
         Core.request.key = Bloombees.webKey;                 // Default calls by default
 
         // Activate check Bloombees Methods
-        var initFunctions = [Bloombees.checkConfigData];
+        var initFunctions = [Bloombees.checkConfigData, Bloombees.checkMarketingParams];
         if(Bloombees.authActive) initFunctions.push(Bloombees.checkDSToken);
         if(Bloombees.hashActive) initFunctions.push(Bloombees.checkHashCookie);
 
@@ -46,35 +46,36 @@ Bloombees = new function () {
 
     // checkDataHelpers read data general info to be used in other applications like: countries, currencies etc..
     this.checkConfigData = function(resolve) {
-        Bloombees.data = Core.cache.get('BloombeesConfigData');
+        Bloombees.data['config'] = Core.cache.get('BloombeesConfigData');
 
         // Evaluate refresh cache
-
-        if((typeof Bloombees.data == 'object') && (typeof Bloombees.data['timestamp']=='number') && !Core.url.formParams('_reloadBloombeesCache')) {
+        if((Bloombees.data['config'] != null) && (typeof Bloombees.data['config']['timestamp'] =='number') && !Core.url.formParams('_reloadBloombeesCache')) {
             var date = new Date();
-            var cacheHours = (date.getTime()-Bloombees.data['timestamp'])/(1000*3600); // Number of hours since last cache
+            var cacheHours = (date.getTime()-Bloombees.data['config']['timestamp'])/(1000*3600); // Number of hours since last cache
             if(cacheHours >= Bloombees.refreshCacheHours) {
-                Bloombees.data = null;
-                console.log('Refresing cache');
+                Bloombees.data['config'] = null;
+                console.log('Refresing cache in Bloombees.data.config');
             }
         }
 
+        if((Bloombees.data['config'] == null) || Core.url.formParams('_reloadBloombeesCache')) {
 
-        if((Bloombees.data == null) || Core.url.formParams('_reloadBloombeesCache')) {
             Bloombees.getConfigData(function(response) {
                 if(response.success) {
-                    Bloombees.data = response.data;
+                    Bloombees.data['config'] = response.data;
                     var date = new Date();
-                    Bloombees.data['timestamp'] = date.getTime();
-                    Core.cache.set('BloombeesConfigData',Bloombees.data);
+                    Bloombees.data['config']['timestamp'] = date.getTime();
+                    Core.cache.set('BloombeesConfigData',Bloombees.data['config']);
 
                 } else {
+                    Bloombees.data['config'] = {};
                     Bloombees.error('checkConfigData');
                 }
+                if(Bloombees.debug) Core.log.printDebug('Bloombees.checkConfigData readed from api into Bloombees.data.config');
                 resolve();
             });
         } else {
-            if(Bloombees.debug) Core.log.printDebug('Bloombees.checkConfigData readed from cache into Bloombees.data');
+            if(Bloombees.debug) Core.log.printDebug('Bloombees.checkConfigData readed from cache into Bloombees.data.config');
             resolve();
         }
     }
@@ -128,6 +129,44 @@ Bloombees = new function () {
             });
         } else {
             if(Bloombees.debug) Core.log.printDebug('Bloombees.checkHashCookie(resolve) avoiding call because a hash exists');
+            resolve();
+        }
+    }
+
+    // checkMarketingParams to analyze the url and save in cache[BloombeesParams] leaving it info accesible in Bloombees.data.params
+    this.checkMarketingParams = function(resolve) {
+        var BloombeesMktReceivedParams = {};
+
+        if(Core.url.formParams('source')!=null) BloombeesMktReceivedParams['source'] = Core.url.formParams('source');
+        if(Core.url.formParams('referrer')!=null) BloombeesMktReceivedParams['referrer'] = Core.url.formParams('referrer');
+        if(Core.url.formParams('campaign')!=null) BloombeesMktReceivedParams['campaign'] = Core.url.formParams('campaign');
+        if(Core.url.formParams('bbreferal')!=null) BloombeesMktReceivedParams['bbreferal'] = Core.url.formParams('bbreferal');
+
+
+        Bloombees.data['params'] = Core.cache.get('BloombeesParams');
+        // Evaluate refresh cache
+        if((Bloombees.data['params'] != null) && (typeof Bloombees.data['params']['timestamp'] =='number') && !Core.url.formParams('_reloadBloombeesCache')) {
+            var date = new Date();
+            var cacheHours = (date.getTime()-Bloombees.data['params']['timestamp'])/(1000*3600); // Number of hours since last cache
+            if(cacheHours >= Bloombees.refreshCacheHours) {
+                Bloombees.data['params'] = null;
+                console.log('Refresing cache in Bloombees.data.params');
+            }
+        }
+
+        if((Bloombees.data['params'] == null) || Core.url.formParams('_reloadBloombeesCache') || Object.keys(BloombeesMktReceivedParams).length) {
+            if(Bloombees.data['params'] == null || Core.url.formParams('_reloadBloombeesCache')) Bloombees.data['params'] = {};
+            for(key in BloombeesMktReceivedParams) {
+                Bloombees.data['params'][key] = BloombeesMktReceivedParams[key];
+            }
+            var date = new Date();
+            Bloombees.data['params']['timestamp'] = date.getTime();
+            Core.cache.set('BloombeesParams',Bloombees.data['params']);
+            if(Bloombees.debug) Core.log.printDebug('Bloombees.checkMarketingParams read from params into Bloombees.data.params');
+
+            resolve();
+        } else {
+            if(Bloombees.debug) Core.log.printDebug('Bloombees.checkMarketingParams readed from cache into Bloombees.data.params');
             resolve();
         }
     }
@@ -278,7 +317,26 @@ Bloombees = new function () {
         return(Core.user.isAuth()===true);
     }
 
-    // Execute a logout
+    // Execute a logOut
+    this.logOut = function(callback) {
+        // Reset Bloombees Data
+        if(Core.user.isAuth()) {
+            Core.request.call({url:'/auth/deactivate/dstoken',method:'PUT'},function (response) {
+                if(response.success) {
+                    //---
+                    if(Bloombees.debug) console.log('Token deleted');
+                }
+                Core.user.setAuth(false);
+                Core.data.reset();
+                Core.request.token = '';
+                if(typeof callback != 'undefined') callback();
+            });
+        } else {
+            Core.data.reset();
+            Core.request.token = '';
+            if(typeof callback != 'undefined') callback();
+        }
+    }
 
     // Return the token from Cookies with name: this.cookieNameForToken
     this.getToken = function() {return(Core.cookies.get(Bloombees.cookieNameForToken) || '')};

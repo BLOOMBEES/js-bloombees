@@ -66,7 +66,7 @@ PageInterface = new function() {
                         // handle the invalid form...
                     } else {
                         PageInterface.loading(true);
-                        Bloombees.login({email:self.loginEmail(),password:self.loginPassword()},function(response) {
+                        Bloombees.signInWithUserPassword({email:self.loginEmail(),password:self.loginPassword()},function(response) {
 
                             if(!response.success) {
                                 self.reset();
@@ -84,7 +84,7 @@ PageInterface = new function() {
             // Login/password
             self.loginEmail = ko.observable();
             self.loginPassword = ko.observable();
-            self.logout = function() {
+            self.logOut = function() {
                 module.logOut();
             }
 
@@ -123,10 +123,10 @@ PageInterface = new function() {
             });
         }
 
-        // logout
+        // logOut
         module.logOut = function () {
             PageInterface.loading(true);
-            Bloombees.logout(function(){
+            Bloombees.logOut(function(){
                 app.reset();
                 PageInterface.loading(false);
             });
@@ -236,13 +236,13 @@ PageInterface = new function() {
                 resolve();
             });
         }
-        module.userdata= function (resolve) {
+        module.userData= function (resolve) {
             module.loadScripts('userdata',function(){
                 resolve();
             });
         }
         module.load = function(callback) {
-            Core.bind([module.socialnetworks,module.userdata], function () {
+            Core.bind([module.socialnetworks,module.userData], function () {
                 callback();
             });
         }
