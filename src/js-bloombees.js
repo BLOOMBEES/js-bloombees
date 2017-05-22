@@ -1,6 +1,6 @@
 Bloombees = new function () {
     // Config vars
-    this.version = '1.1.4';
+    this.version = '1.1.5';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -505,6 +505,124 @@ Bloombees = new function () {
         } else {
             callback(data);
         }
+    }
+
+    // Prepare the upload of a file. logo:image of the store, products: images for one product, picture: image for the user
+    this.getLinkToUploadImages = function(type,callback) {
+        var url = '';
+        switch(type) {
+            case 'signuplogo':
+                if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.getLinkToUploadFiles calling: /upload/users/{user_id}/logo');
+                url = '/upload/users/'+Core.user.get('User_id')+'/logo';
+                break;
+            case 'logo':
+                if(!Bloombees.isAuth()) {
+                    callback({success:false,errors:["to upload a logo, it requires to be authenticated"]});
+                    return Bloombees.error("to upload a logo, it requires to be authenticated");
+                }
+                if(!Core.user.get('Store_id')) {
+                    callback({success:false,errors:["to upload product images, it requires to be a promoter or a seller"]});
+                    return Bloombees.error("to upload product images, it requires to be a promoter or a seller");
+                }
+                // It requires auth
+                if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.getLinkToUploadFiles calling: /upload/stores/{store_id}/logo');
+                url = '/upload/stores/'+Core.user.get('Store_id')+'/logo';
+
+                break;
+            case 'product':
+                if(!Bloombees.isAuth()) {
+                    callback({success:false,errors:["to upload product images, it requires to be authenticated"]});
+                    return Bloombees.error("to upload product images, it requires to be authenticated");
+                }
+                if(!Core.user.get('Store_id')) {
+                    callback({success:false,errors:["to upload product images, it requires to be a promoter or a seller"]});
+                    return Bloombees.error("to upload product images, it requires to be a promoter or a seller");
+                }
+                if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.getLinkToUploadFiles calling: /upload/stores/{store_id}/products');
+                url = '/upload/stores/'+Core.user.get('Store_id')+'/products';
+
+                break;
+            case 'picture':
+                if(!Bloombees.isAuth()) {
+                    callback({success:false,errors:["to upload user picture, it requires to be authenticated"]});
+                    return Bloombees.error("to upload user picture, it requires to be authenticated");
+                }
+                if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.getLinkToUploadFiles calling: /upload/users/{user_id}/image');
+                url = '/upload/users/'+Core.user.get('User_id')+'/image';
+                break;
+            default:
+                callback({success:false,errors:["wrong type. Use getLinkToUploadImages('(logo|product|picture)'])"]});
+                return Bloombees.error("wrong type. Use getLinkToUploadImages('(logo|product|picture)'])");
+                break;
+        }
+
+        Core.request.call({url:url,method:'GET',credentials:'include'},function (response) {
+            callback(response);
+        });
+    }
+
+    this.uploadImage = function(type,field,callback) {
+
+        // Processing the info from uploadImage
+        var info = Core.fileInput(field);
+        if(info.error) return(Core.error.add(info.errorMsg));
+        else {
+            console.log(info);
+            if (typeof info=='undefined'  || typeof info.files=='undefined' ||  typeof info.files[0].type=='undefined' || info.files[0].type.indexOf('image/') != 0) {
+                callback({success:false,errors:["you only can upload images"]});
+                return Bloombees.error("You can only upload images");
+            }
+        }
+
+        // Evaluate the different types and status of the user
+        switch(type) {
+            case 'signuplogo':
+                break;
+            case 'logo':
+                if(!Bloombees.isAuth()) {
+                    callback({success:false,errors:["to upload a logo, it requires to be authenticated"]});
+                    return Bloombees.error("Bloombees.uploadFile upload a logo requires to be authenticated");
+                }
+                if(!Core.user.get('Store_id')) {
+                    callback({success:false,errors:["to upload product images, it requires to be a promoter or a seller"]});
+                    return Bloombees.error("Bloombees.uploadFile upload product images require to be a promoter or a seller");
+                }
+                break;
+            case 'product':
+                if(!Bloombees.isAuth()) {
+                    callback({success:false,errors:["to upload product images, it requires to be authenticated"]});
+                    return Bloombees.error("Bloombees.uploadFile upload product images requires to be authenticated");
+                }
+                if(!Core.user.get('Store_id')) {
+                    callback({success:false,errors:["to upload product images, it requires to be a promoter or a seller"]});
+                    return Bloombees.error("Bloombees.uploadFile upload product images requires to be a promoter or a seller");
+                }
+                break;
+            case 'picture':
+                if(!Bloombees.isAuth()) {
+                    callback({success:false,errors:["to upload user picture, it requires to be authenticated"]});
+                    return Bloombees.error("Bloombees.uploadFile upload user picture requires to be authenticated");
+                }
+                break;
+            default:
+                callback({success:false,errors:["wrong type. Use getLinkToUploadImages('(logo|product|picture)'])"]});
+                return Bloombees.error("wrong type. Use getLinkToUploadImages('(logo|product|picture)'])");
+                break;
+        }
+
+        // Get the link to upload a file
+        Bloombees.getLinkToUploadImages(type,function(response) {
+            if (response.success) {
+                var url = response.data.uploadUrl;
+                console.log(url,info.params);
+                Core.request.call({method:'POST',url:url,credentials:'include',params:info.params},function(response) {
+                    callback(response);
+                });
+            } else {
+                console.log(response);
+            }
+            callback(response);
+        });
     }
 
     this.acceptUserTermsAndConditions = function(version,callback) {
