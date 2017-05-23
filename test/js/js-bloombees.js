@@ -2121,7 +2121,7 @@ Core = new function () {
 
 Bloombees = new function () {
     // Config vars
-    this.version = '1.1.5';
+    this.version = '1.1.6';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -2133,6 +2133,8 @@ Bloombees = new function () {
     this.hashActive = false;                        // Generate a hash to allow backend doing calls
     this.authActive = true;                        // Generate a hash to allow backend doing calls
     this.refreshCacheHours = 24;
+    this.clientCountry = Core.config.get('clientCountry');
+    this.initiated = null;
 
     Core.authCookieName = this.cookieNameForToken;  // Asign the local name of the cookie for auth
     Core.authActive = this.authActive;              // Let's active the authorization mode
@@ -2146,23 +2148,46 @@ Bloombees = new function () {
     // ------------------
     this.init = function (callback) {
 
+        Bloombees.initiated = false;
         Core.request.key = Bloombees.webKey;                 // Default webkey by default X-WEB-KEY
         Core.request.token = '';                        // Default X-DS-TOKEN to '' until init
         Core.authCookieName = Bloombees.cookieNameForToken;  // Asign the local name of the cookie for auth
         Core.authActive = Bloombees.authActive;              // Let's active the authorization mode
         Core.request.base = Bloombees.apiUrl;                // Default calls by default
         Core.request.key = Bloombees.webKey;                 // Default calls by default
+        Bloombees.clientCountry = Core.config.get('clientCountry');
+
 
         // Activate check Bloombees Methods
         var initFunctions = [Bloombees.checkConfigData, Bloombees.checkMarketingParams];
         if(Bloombees.authActive) initFunctions.push(Bloombees.checkDSToken);
         if(Bloombees.hashActive) initFunctions.push(Bloombees.checkHashCookie);
+        if(Bloombees.clientCountry =='ZZ' || Bloombees.clientCountry == null)  initFunctions.push(Bloombees.checkGeoData);
 
         // initiating Core.
         Core.init(initFunctions,function(response) {
+            Bloombees.initiated = true;
             if(!response.success) Bloombees.error('Bloombees.init has returned with error');
             if(typeof callback =='function') callback();
         });
+    }
+
+    // Allow external processes wait until we finish the calls
+    this.waitUntilInit = function(callback) {
+        if(Bloombees.initiated==null) {
+            Bloombees.error('Bloombees.waitUntilInit no one has call Bloombees.init');
+            callback();
+        }
+        function _wait() {
+            if(Bloombees.initiated == true){
+                callback();
+            }
+            else{
+                // Wait 250 ms
+                setTimeout(_wait, 250);
+            }
+        }
+        _wait();
     }
 
     // checkDataHelpers read data general info to be used in other applications like: countries, currencies etc..
@@ -2290,6 +2315,21 @@ Bloombees = new function () {
             if(Bloombees.debug) Core.log.printDebug('Bloombees.checkMarketingParams readed from cache into Bloombees.data.params');
             resolve();
         }
+    }
+
+    // checkMarketingParams to analyze the url and save in cache[BloombeesParams] leaving it info accesible in Bloombees.data.params
+    this.checkGeoData = function(resolve) {
+        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.checkGeoData(resolve) Checking the token in : /data/geo');
+        Core.request.call({url:'/data/geo',method:'GET'},function (response) {
+            if(response.success) {
+                if(Bloombees.debug ) Core.log.printDebug('Bloombees.checkGeoData(resolve) assigning Bloombees.clientCountry='+response.data.COUNTRY);
+                Bloombees.clientCountry = response.data.COUNTRY;
+            } else {
+                Bloombees.error('Bloombees.checkGeoData');
+                console.log(response);
+            }
+            resolve();
+        });
     }
 
     // Asign URL to call by default as an API
@@ -2524,8 +2564,6 @@ Bloombees = new function () {
             callback({success:false,error:['User is not authenticated in the frontend. Avoiding call']});
             return;
         }
-
-
         var data = Core.data.get('getUserSocialNetworks');
         if(typeof data == 'undefined' || reload) {
             Core.data.set('getUserSocialNetworks',{success:false});
