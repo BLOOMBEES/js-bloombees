@@ -2121,7 +2121,7 @@ Core = new function () {
 
 Bloombees = new function () {
     // Config vars
-    this.version = '1.1.6';
+    this.version = '1.1.7';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -2779,8 +2779,8 @@ Bloombees = new function () {
                 });
             } else {
                 console.log(response);
+                callback(response);
             }
-            callback(response);
         });
     }
 
