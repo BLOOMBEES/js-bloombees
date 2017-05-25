@@ -2121,7 +2121,7 @@ Core = new function () {
 
 Bloombees = new function () {
     // Config vars
-    this.version = '1.1.8';
+    this.version = '1.1.9';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -2361,37 +2361,35 @@ Bloombees = new function () {
         }
     }
 
-
     // It opens a popup calling https://bloombees.com/h/service/oauth/{social}?ret=retUrl. The implementation of the retUrl
     this.signInWithOauthPopUp = function (social, retUrl,callback) {
 
         if((typeof social =='undefined') ) {
-            var response = {success:false, errors:["Bloombees.signInWithOauth(social,retUrl,callback) missing social=(facebook|google|instagram)"]};
+            var response = {success:false, errors:["Bloombees.signInWithOauthPopUp(social,retUrl,callback) missing social=(facebook|google|instagram)"]};
             if(typeof callback != 'undefined') callback(response);
-            return Bloombees.error('Bloombees.signInWithOauth(social,retUrl,callback) missing social=(facebook|google|instagram)');
+            return Bloombees.error('Bloombees.signInWithOauthPopUp(social,retUrl,callback) missing callback');
         }
 
         if((typeof retUrl =='undefined') || !retUrl.indexOf("{id}")  ) {
-            var response = {success:false, errors:["Bloombees.signInWithOauth(social, retUrl,callback) missing a right retUrl included '?oauth_signin={id}' substring to subtitute it."]};
+            var response = {success:false, errors:["Bloombees.signInWithOauthPopUp(social, retUrl,callback) missing a right retUrl included '?oauth_id={id}' substring to subtitute it."]};
             if(typeof callback != 'undefined') callback(response);
-            return Bloombees.error('Bloombees.signInWithOauth(social, retUrl,callback) missing a right retUrl included "?oauth_signin={id}" substring to subtitute it.');
+            return Bloombees.error('Bloombees.signInWithOauthPopUp(social, retUrl,callback) missing a right retUrl included "?oauth_id={id}" substring to subtitute it.');
         }
 
         Core.oauthpopup({
             path: Core.config.get('bloombeesOAuthUrl')+'/'+social+'?ret='+retUrl,
             callback: function()
             {
-                var oauth_id = Core.cookies.get('oauth_signin');
+                var oauth_id = Core.cookies.get('oauth_id');
                 if(oauth_id) {
-                    Core.cookies.remove('oauth_signin');
-                    Bloombees.oauth(oauth_id,function(response) {
+                    Core.cookies.remove('oauth_id');
+                    Bloombees.signInWithOauthId(oauth_id,function(response) {
                         if(typeof callback != 'undefined') callback(response);
                         else console.log(response);
                     });
                     //do callback stuff
                 } else {
-                    response = {success:false, errors:["missing cookie 'oauth_signin'. Apply in retUrl the JavaScriptCode to save the cookie oauth_signin"]};
-                    loader.removeClass('animated zoomOut active error');
+                    response = {success:false, errors:["missing cookie 'oauth_id'. Apply in retUrl the JavaScriptCode to save the cookie oauth_signin"]};
                     if(typeof callback != 'undefined') callback(response);
                     else console.log(response);
                 }
@@ -2399,7 +2397,25 @@ Bloombees = new function () {
         });
     };
 
-
+    // Execute a signin based on a Bloombees oauth id.. It will be used by signInWithOauthPopUp
+    this.signInWithOauthId = function(oauth_id,callback) {
+        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signInWithOauthId calling: /auth/oauthservice');
+        Core.request.call({url:'/auth/oauthservice',params:{id:oauth_id},method:'POST'},function (response) {
+            if(response.success) {
+                Core.cookies.set(Bloombees.cookieNameForToken,response.data.dstoken);
+                if(Core.user.setAuth(true)) {
+                    Core.request.token = Core.user.getCookieValue();
+                    Core.user.add(response.data);
+                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signInWithOauthId added user info: '+JSON.stringify(response.data));
+                } else {
+                    Bloombees.error('Bloombees.signInWithOauthId','Error in Core.user.setAuth(true)');
+                }
+            }else {
+                Bloombees.error('Bloombees.oauth',response);
+            }
+            callback(response);
+        });
+    }
 
     // Login with userpassword
     this.signInWithUserPassword = function(data,callback) {
@@ -2422,8 +2438,65 @@ Bloombees = new function () {
         });
     }
 
+
+    // It opens a popup calling https://bloombees.com/h/service/oauth/{social}?ret=retUrl. The implementation of the retUrl
+    this.signUpWithOauthPopUp = function (social, retUrl,callback) {
+
+        if((typeof social =='undefined') ) {
+            var response = {success:false, errors:["Bloombees.signUpWithOauthPopUp(social,retUrl,callback) missing social=(facebook|google|instagram)"]};
+            if(typeof callback != 'undefined') callback(response);
+            return Bloombees.error('Bloombees.signInWithOauth(social,retUrl,callback) missing callback');
+        }
+
+        if((typeof retUrl =='undefined') || !retUrl.indexOf("{id}")  ) {
+            var response = {success:false, errors:["Bloombees.signUpWithOauthPopUp(social, retUrl,callback) missing a right retUrl included '?oauth_id={id}' substring to subtitute it."]};
+            if(typeof callback != 'undefined') callback(response);
+            return Bloombees.error('Bloombees.signUpWithOauthPopUp(social, retUrl,callback) missing a right retUrl included "?oauth_id={id}" substring to subtitute it.');
+        }
+
+        Core.oauthpopup({
+            path: Core.config.get('bloombeesOAuthUrl')+'/'+social+'?ret='+retUrl,
+            callback: function()
+            {
+                var oauth_id = Core.cookies.get('oauth_id');
+                if(oauth_id) {
+                    Core.cookies.remove('oauth_id');
+                    Bloombees.signUpWithOauthId(oauth_id,function(response) {
+                        if(typeof callback != 'undefined') callback(response);
+                        else console.log(response);
+                    });
+                    //do callback stuff
+                } else {
+                    response = {success:false, errors:["missing cookie 'oauth_id'. Apply in retUrl the JavaScriptCode to save the cookie oauth_signin"]};
+                    if(typeof callback != 'undefined') callback(response);
+                    else console.log(response);
+                }
+            }
+        });
+    };
+
+    // Execute an oauth based on a Bloombees oauth id.. It will be used by signInWithOauthPopUp
+    this.signUpWithOauthId = function(oauth_id,callback) {
+        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.oauth calling: /auth/oauthservice');
+        Core.request.call({url:'/register/user/oauthservice',params:{id:oauth_id,User_language:Bloombees.lang},method:'POST'},function (response) {
+            if(response.success) {
+                Core.cookies.set(Bloombees.cookieNameForToken,response.data.dstoken);
+                if(Core.user.setAuth(true)) {
+                    Core.request.token = Core.user.getCookieValue();
+                    Core.user.add(response.data);
+                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpWithOauthId added user info: '+JSON.stringify(response.data));
+                } else {
+                    Bloombees.error('Bloombees.oauth','Error in Core.user.setAuth(true)');
+                }
+            }else {
+                Bloombees.error('Bloombees.oauth',response);
+            }
+            callback(response);
+        });
+    }
+
     // Login with userpassword
-    this.signUp = function(data,callback) {
+    this.signUpWithUserPassword = function(data,callback) {
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUp calling: /register/user');
         Core.request.call({url:'/register/user',params:data,method:'POST'},function (response) {
             if(Core.user.isAuth()) Core.user.setAuth(false);
@@ -2433,17 +2506,18 @@ Bloombees = new function () {
                     if(Core.user.setAuth(true)) {
                         Core.request.token = Core.user.getCookieValue();
                         Core.user.add(response.data);
-                        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUp added user info: '+JSON.stringify(response.data));
+                        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpWithUserPassword added user info: '+JSON.stringify(response.data));
                     } else {
-                        Bloombees.error('Bloombees.signUp','Error in Core.user.setAuth(true)');
+                        Bloombees.error('Bloombees.signUpWithUserPassword','Error in Core.user.setAuth(true)');
                     }
                 }
             } else {
-                Bloombees.error('Bloombees.signUp',response);
+                Bloombees.error('Bloombees.signUpWithUserPassword',response);
             }
             callback(response);
         });
     }
+
 
     // SignUp a store
     this.signUpStore = function(data,callback) {
@@ -2482,25 +2556,7 @@ Bloombees = new function () {
         });
     }
 
-    // Execute an oauth based on a Bloombees oauth id
-    this.oauth = function(oauth_id,callback) {
-        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.oauth calling: /auth/oauthservice');
-        Core.request.call({url:'/auth/oauthservice',params:{id:oauth_id},method:'POST'},function (response) {
-            if(response.success) {
-                Core.cookies.set(Bloombees.cookieNameForToken,response.data.dstoken);
-                if(Core.user.setAuth(true)) {
-                    Core.request.token = Core.user.getCookieValue();
-                    Core.user.add(response.data);
-                    if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.oauth added user info: '+JSON.stringify(response.data));
-                } else {
-                    Bloombees.error('Bloombees.oauth','Error in Core.user.setAuth(true)');
-                }
-            }else {
-                Bloombees.error('Bloombees.oauth',response);
-            }
-            callback(response);
-        });
-    }
+
 
     // It says if the user is auth or not.
     this.isAuth = function() {
