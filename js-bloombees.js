@@ -2121,7 +2121,7 @@ Core = new function () {
 
 Bloombees = new function () {
     // Config vars
-    this.version = '1.1.7';
+    this.version = '1.1.8';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -2442,6 +2442,27 @@ Bloombees = new function () {
                 Bloombees.error('Bloombees.signUp',response);
             }
             callback(response);
+        });
+    }
+
+    // SignUp a store
+    this.signUpStore = function(data,callback) {
+        if(!Core.user.isAuth()) {
+            Bloombees.error('Bloombees.signUpStore you are not authenticated');
+        }
+        if(!Core.user.get('Store_id')) {
+            Bloombees.error('Bloombees.signUpStore the user has already a store created: '+Core.user.get('Store_id'));
+        }
+        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpStore calling: /register/store/{User_id}');
+        Core.request.call({url:'/register/store/'+Core.user.get('User_id'),params:data,method:'POST'},function (response) {
+            if(response.success) {
+                // TODO: refresh dstoken to get the new store id
+                callback(response);
+            } else {
+                Bloombees.error('Bloombees.signUp',response);
+                callback(response);
+            }
+
         });
     }
 
