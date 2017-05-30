@@ -2121,7 +2121,7 @@ Core = new function () {
 
 Bloombees = new function () {
     // Config vars
-    this.version = '1.1.9';
+    this.version = '1.2.0';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -2876,6 +2876,39 @@ Bloombees = new function () {
         }
         Core.debug=true;
         Core.request.call({url:'/auth/terms/'+Core.user.get('User_id'),method:'POST',params:{User_termsId:version}},function (response) {
+            callback(response);
+        });
+    }
+
+    this.checkPasswordRecovery = function(id,callback) {
+
+        if(typeof id != 'string') {
+            Bloombees.error('Bloombees.checkPasswordRecovery','email is not a string.');
+            callback({success:false,error:['Bloombees.sendPasswordRecovery','email is not a string.']});
+            return;
+        }
+
+        Core.request.call({url:'/auth/newpassword',method:'GET',params:{id:id}},function (response) {
+            callback(response);
+        });
+    }
+
+    this.updatePasswordRecovery = function(data,callback) {
+
+        Core.request.call({url:'/auth/newpassword',method:'PUT',contentType:'json',params:data},function (response) {
+            callback(response);
+        });
+    }
+
+    this.generatePasswordRecovery = function(email,callback) {
+
+        if(typeof email != 'string') {
+            Bloombees.error('Bloombees.generatePasswordRecovery','email is not a string.');
+            callback({success:false,error:['Bloombees.generatePasswordRecovery','email is not a string.']});
+            return;
+        }
+
+        Core.request.call({url:'/auth/newpassword',method:'POST',params:{User_email:email}},function (response) {
             callback(response);
         });
     }
