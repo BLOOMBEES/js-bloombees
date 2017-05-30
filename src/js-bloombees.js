@@ -1,6 +1,6 @@
 Bloombees = new function () {
     // Config vars
-    this.version = '1.2.0';
+    this.version = '1.2.1';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -165,7 +165,7 @@ Bloombees = new function () {
         if(Core.url.formParams('source')!=null) BloombeesMktReceivedParams['source'] = Core.url.formParams('source');
         if(Core.url.formParams('referrer')!=null) BloombeesMktReceivedParams['referrer'] = Core.url.formParams('referrer');
         if(Core.url.formParams('campaign')!=null) BloombeesMktReceivedParams['campaign'] = Core.url.formParams('campaign');
-        if(Core.url.formParams('bbreferal')!=null) BloombeesMktReceivedParams['bbreferal'] = Core.url.formParams('bbreferal');
+        if(Core.url.formParams('bbreferral')!=null) BloombeesMktReceivedParams['bbreferral'] = Core.url.formParams('bbreferral');
 
 
         Bloombees.data['params'] = Core.cache.get('BloombeesParams');

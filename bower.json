@@ -2,7 +2,7 @@
   "name": "js-bloombees",
   "main": "js-bloombees.js",
   "description": "A JS Core library to speed up app the development of bloombees integration",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "authors": [
     "Héctor López",
     "Adrián Martínez"
