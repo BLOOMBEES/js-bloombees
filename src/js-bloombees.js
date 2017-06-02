@@ -1,6 +1,6 @@
 Bloombees = new function () {
     // Config vars
-    this.version = '1.2.1';
+    this.version = '1.2.2';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -317,7 +317,6 @@ Bloombees = new function () {
         });
     }
 
-
     // It opens a popup calling https://bloombees.com/h/service/oauth/{social}?ret=retUrl. The implementation of the retUrl
     this.signUpWithOauthPopUp = function (social, retUrl,callback) {
 
@@ -338,15 +337,24 @@ Bloombees = new function () {
             callback: function()
             {
                 var oauth_id = Core.cookies.get('oauth_id');
+                var oauth_emailRequired = Core.cookies.get('oauth_emailRequired');
+                Core.cookies.remove('oauth_id');
+                Core.cookies.remove('oauth_emailRequired');
+                // The front end has received the id and stored in cookies.
                 if(oauth_id) {
-                    Core.cookies.remove('oauth_id');
-                    Bloombees.signUpWithOauthId(oauth_id,function(response) {
+                    if(oauth_emailRequired) {
+                        response = {success:false, oauth_id: oauth_id ,status:4000, errors:["missing email in the social network. Ask for email and call XXXXX: "]};
                         if(typeof callback != 'undefined') callback(response);
                         else console.log(response);
-                    });
+                    } else {
+                        Bloombees.signUpWithOauthId(oauth_id, null, function (response) {
+                            if (typeof callback != 'undefined') callback(response);
+                            else console.log(response);
+                        });
+                    }
                     //do callback stuff
                 } else {
-                    response = {success:false, errors:["missing cookie 'oauth_id'. Apply in retUrl the JavaScriptCode to save the cookie oauth_signin"]};
+                    response = {success:false, status:5030, errors:["missing cookie 'oauth_id'. Apply in retUrl the JavaScriptCode to save the cookie oauth_signin"]};
                     if(typeof callback != 'undefined') callback(response);
                     else console.log(response);
                 }
@@ -355,9 +363,14 @@ Bloombees = new function () {
     };
 
     // Execute an oauth based on a Bloombees oauth id.. It will be used by signInWithOauthPopUp
-    this.signUpWithOauthId = function(oauth_id,callback) {
+    this.signUpWithOauthId = function(oauth_id,email,callback) {
+
+        var params = {id:oauth_id,User_language:Bloombees.lang,dstoken:1};
+        if(email != null && typeof email =="string")
+            params['User_email'] = email;
+
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.oauth calling: /auth/oauthservice');
-        Core.request.call({url:'/register/user/oauthservice',params:{id:oauth_id,User_language:Bloombees.lang},method:'POST'},function (response) {
+        Core.request.call({url:'/register/user/oauthservice',params:params,method:'POST'},function (response) {
             if(response.success) {
                 Core.cookies.set(Bloombees.cookieNameForToken,response.data.dstoken);
                 if(Core.user.setAuth(true)) {
@@ -397,7 +410,6 @@ Bloombees = new function () {
         });
     }
 
-
     // SignUp a store
     this.signUpStore = function(data,callback) {
         if(!Core.user.isAuth()) {
@@ -434,8 +446,6 @@ Bloombees = new function () {
             callback(response);
         });
     }
-
-
 
     // It says if the user is auth or not.
     this.isAuth = function() {
