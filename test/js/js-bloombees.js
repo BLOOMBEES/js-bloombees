@@ -2121,7 +2121,7 @@ Core = new function () {
 
 Bloombees = new function () {
     // Config vars
-    this.version = '1.2.2';
+    this.version = '1.2.3';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -2400,7 +2400,7 @@ Bloombees = new function () {
     // Execute a signin based on a Bloombees oauth id.. It will be used by signInWithOauthPopUp
     this.signInWithOauthId = function(oauth_id,callback) {
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signInWithOauthId calling: /auth/oauthservice');
-        Core.request.call({url:'/auth/oauthservice',params:{id:oauth_id},method:'POST'},function (response) {
+        Core.request.call({url:'/auth/oauthservice',params:{id:oauth_id},method:'POST',contentType:'json'},function (response) {
             if(response.success) {
                 Core.cookies.set(Bloombees.cookieNameForToken,response.data.dstoken);
                 if(Core.user.setAuth(true)) {
@@ -2420,7 +2420,7 @@ Bloombees = new function () {
     // Login with userpassword
     this.signInWithUserPassword = function(data,callback) {
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.login calling: /auth/userpassword');
-        Core.request.call({url:'/auth/userpassword',params:data,method:'POST'},function (response) {
+        Core.request.call({url:'/auth/userpassword',params:data,method:'POST',contentType:'json'},function (response) {
             if(Core.user.isAuth()) Core.user.setAuth(false);
             if(response.success) {
                 Core.cookies.set(Bloombees.cookieNameForToken,response.data.dstoken);
@@ -2491,7 +2491,7 @@ Bloombees = new function () {
             params['User_email'] = email;
 
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.oauth calling: /auth/oauthservice');
-        Core.request.call({url:'/register/user/oauthservice',params:params,method:'POST'},function (response) {
+        Core.request.call({url:'/register/user/oauthservice',params:params,method:'POST',contentType:'json'},function (response) {
             if(response.success) {
                 Core.cookies.set(Bloombees.cookieNameForToken,response.data.dstoken);
                 if(Core.user.setAuth(true)) {
@@ -2511,7 +2511,7 @@ Bloombees = new function () {
     // Login with userpassword
     this.signUpWithUserPassword = function(data,callback) {
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUp calling: /register/user');
-        Core.request.call({url:'/register/user',params:data,method:'POST'},function (response) {
+        Core.request.call({url:'/register/user',params:data,method:'POST',contentType:'json'},function (response) {
             if(Core.user.isAuth()) Core.user.setAuth(false);
             if(response.success) {
                 if(typeof response.data.dstoken!='undefined') {
@@ -2540,7 +2540,7 @@ Bloombees = new function () {
             Bloombees.error('Bloombees.signUpStore the user has already a store created: '+Core.user.get('Store_id'));
         }
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpStore calling: /register/store/{User_id}');
-        Core.request.call({url:'/register/store/'+Core.user.get('User_id'),params:data,method:'POST'},function (response) {
+        Core.request.call({url:'/register/store/'+Core.user.get('User_id'),params:data,method:'POST',contentType:'json'},function (response) {
             if(response.success) {
                 // TODO: refresh dstoken to get the new store id
                 callback(response);
@@ -2696,7 +2696,7 @@ Bloombees = new function () {
             return;
         }
 
-        Core.request.call({url:'/socialnetworks/connections/'+Core.user.get('User_id')+'/oauthservice',params:{id:oauth_id},method:'POST'},function (response) {
+        Core.request.call({url:'/socialnetworks/connections/'+Core.user.get('User_id')+'/oauthservice',params:{id:oauth_id},method:'POST',contentType:'json'},function (response) {
             callback(response);
         });
 
@@ -2724,7 +2724,7 @@ Bloombees = new function () {
         if(typeof data['Contact_lang']=='undefined') return(Bloombees.error('Bloombees.callMeNow missing Contact_lang'));
 
         Core.debug=true;
-        Core.request.call({url:'/forms/callmenow',method:'POST',params:data},function (response) {
+        Core.request.call({url:'/forms/callmenow',method:'POST',params:data,contentType:'json'},function (response) {
             callback(response);
         });
     }
