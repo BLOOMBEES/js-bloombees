@@ -1,6 +1,6 @@
 Bloombees = new function () {
     // Config vars
-    this.version = '1.2.4';
+    this.version = '1.2.5';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://openapi.bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -118,7 +118,7 @@ Bloombees = new function () {
                     Core.user.add(response.data);
                     if(Bloombees.debug) Core.log.printDebug('Bloombees.checkDSToken(resolve) Token ok: data recovered and Core.request.token assigned');
                 } else {
-                    if(Bloombees.debug) Core.log.printDebug('Bloombees.checkDSToken(resolve) Token error: deletin local credentials');
+                    if(Bloombees.debug) Core.log.printDebug('Bloombees.checkDSToken(resolve) Token error: deleting local credentials');
                     Core.user.setAuth(false);
                     Core.data.reset();
                     Core.request.token = '';
@@ -127,6 +127,37 @@ Bloombees = new function () {
             });
         } else {
             if(Bloombees.debug) Core.log.printDebug('Bloombees.checkDSToken(resolve) Core.isAuth() == false, so.. checking the token is not needed');
+            if(Core.cookies.get(Bloombees.cookieNameForToken)) {
+                console.log('cookie still exist');
+            }
+            Core.data.reset();
+            Core.request.token = '';
+            resolve();
+        }
+    }
+
+    // refreshDSToken check if it exist.. and refresh the info
+    this.refreshDSToken = function(resolve) {
+        if(Core.user.isAuth()) {
+            // Assign in the calls the value of the user's cookie value
+            Core.request.token = Core.user.getCookieValue();
+
+            // We have to check that cookie is still available.
+            if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.refreshDSToken(resolve) Checking the token in : /auth/check/dstoken?refresh');
+            Core.request.call({url:'/auth/check/dstoken?refresh',method:'GET'},function (response) {
+                if(response.success) {
+                    Core.user.add(response.data);
+                    if(Bloombees.debug) Core.log.printDebug('Bloombees.refreshDSToken(resolve) Token ok: data recovered and Core.request.token assigned');
+                } else {
+                    if(Bloombees.debug) Core.log.printDebug('Bloombees.checkDSToken(resolve) Token error: deleting local credentials');
+                    Core.user.setAuth(false);
+                    Core.data.reset();
+                    Core.request.token = '';
+                }
+                resolve();
+            });
+        } else {
+            if(Bloombees.debug) Core.log.printDebug('Bloombees.refreshDSToken(resolve) Core.isAuth() == false, so.. refreshing the token is not needed');
             if(Core.cookies.get(Bloombees.cookieNameForToken)) {
                 console.log('cookie still exist');
             }
