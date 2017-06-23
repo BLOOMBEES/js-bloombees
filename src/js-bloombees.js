@@ -1,6 +1,6 @@
 Bloombees = new function () {
     // Config vars
-    this.version = '1.2.5';
+    this.version = '1.2.6';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://openapi.bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -490,6 +490,34 @@ Bloombees = new function () {
                 });
             } else {
                 Bloombees.error('Bloombees.signUpPromoter',response);
+                callback(response);
+            }
+
+        });
+    }
+
+    // SignUp a referrer
+    this.signUpReferrer = function(data,callback) {
+
+        if(!Core.user.isAuth()) {
+            Bloombees.error('Bloombees.signUpReferrer you are not authenticated');
+        }
+        if(null !== Core.user.get('Store_id')) {
+            Bloombees.error('Bloombees.signUpReferrer the user has already a store created: '+Core.user.get('Store_id'));
+        }
+        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpReferrer calling: /register/referrer/{User_id}');
+        Core.request.call({url:'/register/referrer/'+Core.user.get('User_id'),params:data,method:'POST',contentType:'json'},function (response) {
+            if(response.success) {
+                Core.request.call({url:'/auth/check/dstoken?refresh',method:'GET'},function (responseds) {
+                    if(responseds.success) {
+                        Core.user.add(responseds.data);
+                    } else {
+                        Bloombees.error('Bloombees.signUpReferrer calling to /auth/check/dstoken?refresh',responseds);
+                    }
+                    callback(response);
+                });
+            } else {
+                Bloombees.error('Bloombees.signUpReferrer',response);
                 callback(response);
             }
 
