@@ -2121,7 +2121,7 @@ Core = new function () {
 
 Bloombees = new function () {
     // Config vars
-    this.version = '1.2.6';
+    this.version = '1.2.7';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://openapi.bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -2657,6 +2657,19 @@ Bloombees = new function () {
     this.signUpUniqueIdAvailability = function(unique_id,callback) {
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpUniqueIdAvailability calling: /register/availability/store/{unique_id}');
         Core.request.call({url:'/register/availability/store/'+unique_id,method:'GET'},function (response) {
+            callback(response);
+        });
+    }
+
+    // Confirm the email passing: User_id and User_emailConfirmationHash
+    this.confirmEmail = function(data,callback) {
+        if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.confirmEmail calling: /auth/confirm');
+        Core.request.call({url:'/auth/confirm',params:data,method:'POST',contentType:'json'},function (response) {
+            if(response.success) {
+                if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.confirmEmail confirmed for user. Info: '+JSON.stringify(response.data));
+            } else {
+                Bloombees.error('Bloombees.confirmEmail',response);
+            }
             callback(response);
         });
     }
