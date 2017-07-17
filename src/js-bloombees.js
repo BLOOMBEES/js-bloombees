@@ -53,10 +53,6 @@ Bloombees = new function () {
 
     // Allow external processes wait until we finish the calls
     this.waitUntilInit = function(callback) {
-        if(Bloombees.initiated==null) {
-            Bloombees.error('Bloombees.waitUntilInit no one has call Bloombees.init');
-            callback();
-        }
         function _wait() {
             if(Bloombees.initiated == true){
                 callback();
