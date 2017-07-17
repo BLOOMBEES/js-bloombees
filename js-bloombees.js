@@ -2121,7 +2121,7 @@ Core = new function () {
 
 Bloombees = new function () {
     // Config vars
-    this.version = '1.2.7';
+    this.version = '1.2.8';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://openapi.bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -2174,10 +2174,6 @@ Bloombees = new function () {
 
     // Allow external processes wait until we finish the calls
     this.waitUntilInit = function(callback) {
-        if(Bloombees.initiated==null) {
-            Bloombees.error('Bloombees.waitUntilInit no one has call Bloombees.init');
-            callback();
-        }
         function _wait() {
             if(Bloombees.initiated == true){
                 callback();
