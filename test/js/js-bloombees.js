@@ -2121,7 +2121,7 @@ Core = new function () {
 
 Bloombees = new function () {
     // Config vars
-    this.version = '1.2.7';
+    this.version = '1.2.9';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://openapi.bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -2310,9 +2310,9 @@ Bloombees = new function () {
     this.checkMarketingParams = function(resolve) {
         var BloombeesMktReceivedParams = {};
 
-        if(Core.url.formParams('source')!=null) BloombeesMktReceivedParams['source'] = Core.url.formParams('source');
-        if(Core.url.formParams('referrer')!=null) BloombeesMktReceivedParams['referrer'] = Core.url.formParams('referrer');
-        if(Core.url.formParams('campaign')!=null) BloombeesMktReceivedParams['campaign'] = Core.url.formParams('campaign');
+        if(Core.url.formParams('utm_source')!=null) BloombeesMktReceivedParams['source'] = Core.url.formParams('utm_source');
+        if(Core.url.formParams('utm_medium')!=null) BloombeesMktReceivedParams['referrer'] = Core.url.formParams('utm_medium');
+        if(Core.url.formParams('utm_campaign')!=null) BloombeesMktReceivedParams['campaign'] = Core.url.formParams('utm_campaign');
         if(Core.url.formParams('bbreferral')!=null) BloombeesMktReceivedParams['bbreferral'] = Core.url.formParams('bbreferral');
 
 
