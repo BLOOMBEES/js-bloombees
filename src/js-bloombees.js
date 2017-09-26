@@ -1,6 +1,6 @@
 Bloombees = new function () {
     // Config vars
-    this.version = '1.2.13';
+    this.version = '1.2.14';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://openapi.bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -397,12 +397,14 @@ Bloombees = new function () {
             params['User_email'] = email;
 
         // Add tracking codes if those not exist: source, referrer, campaign
-        if(typeof Bloombees.data['params']['source']!='undefnied')
+        if(typeof Bloombees.data['params']['source']!='undefined')
             params['source'] = Bloombees.data['params']['source'];
-        if(typeof Bloombees.data['params']['referrer']!='undefnied')
+        if(typeof Bloombees.data['params']['referrer']!='undefined')
             params['referrer'] = Bloombees.data['params']['referrer'];
-        if(typeof Bloombees.data['params']['campaign']!='undefnied')
+        if(typeof Bloombees.data['params']['campaign']!='undefined')
             params['campaign'] = Bloombees.data['params']['campaign'];
+        if(typeof Bloombees.data['params']['bbreferral']!='undefined')
+            params['bbreferral'] = Bloombees.data['params']['bbreferral'];
 
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.oauth calling: /auth/oauthservice');
         Core.request.call({url:'/register/user/oauthservice',params:params,method:'POST',contentType:'json'},function (response) {
@@ -427,12 +429,14 @@ Bloombees = new function () {
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUp calling: /register/user');
 
         // Add tracking codes if those not exist: source, referrer, campaign
-        if(typeof data['source']=='undefined' && typeof Bloombees.data['params']['source']!='undefnied')
+        if(typeof data['source']=='undefined' && typeof Bloombees.data['params']['source']!='undefined')
             data['source'] = Bloombees.data['params']['source'];
-        if(typeof data['referrer']=='undefined' && typeof Bloombees.data['params']['referrer']!='undefnied')
+        if(typeof data['referrer']=='undefined' && typeof Bloombees.data['params']['referrer']!='undefined')
             data['referrer'] = Bloombees.data['params']['referrer'];
-        if(typeof data['campaign']=='undefined' && typeof Bloombees.data['params']['campaign']!='undefnied')
+        if(typeof data['campaign']=='undefined' && typeof Bloombees.data['params']['campaign']!='undefined')
             data['campaign'] = Bloombees.data['params']['campaign'];
+        if(typeof Bloombees.data['params']['bbreferral']!='undefined')
+            params['bbreferral'] = Bloombees.data['params']['bbreferral'];
 
         Core.request.call({url:'/register/user',params:data,method:'POST',contentType:'json'},function (response) {
             if(Core.user.isAuth()) Core.user.setAuth(false);
@@ -466,12 +470,14 @@ Bloombees = new function () {
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpStore calling: /register/store/{User_id}');
 
         // Add tracking codes if those not exist: source, referrer, campaign
-        if(typeof data['source']=='undefined' && typeof Bloombees.data['params']['source']!='undefnied')
+        if(typeof data['source']=='undefined' && typeof Bloombees.data['params']['source']!='undefined')
             data['source'] = Bloombees.data['params']['source'];
-        if(typeof data['referrer']=='undefined' && typeof Bloombees.data['params']['referrer']!='undefnied')
+        if(typeof data['referrer']=='undefined' && typeof Bloombees.data['params']['referrer']!='undefined')
             data['referrer'] = Bloombees.data['params']['referrer'];
-        if(typeof data['campaign']=='undefined' && typeof Bloombees.data['params']['campaign']!='undefnied')
+        if(typeof data['campaign']=='undefined' && typeof Bloombees.data['params']['campaign']!='undefined')
             data['campaign'] = Bloombees.data['params']['campaign'];
+        if(typeof Bloombees.data['params']['bbreferral']!='undefined')
+            params['bbreferral'] = Bloombees.data['params']['bbreferral'];
 
         Core.request.call({url:'/register/store/'+Core.user.get('User_id'),params:data,method:'POST',contentType:'json'},function (response) {
             if(response.success) {
@@ -502,12 +508,14 @@ Bloombees = new function () {
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpPromoter calling: /register/beeviral/{User_id}');
 
         // Add tracking codes if those not exist: source, referrer, campaign
-        if(typeof data['source']=='undefined' && typeof Bloombees.data['params']['source']!='undefnied')
+        if(typeof data['source']=='undefined' && typeof Bloombees.data['params']['source']!='undefined')
             data['source'] = Bloombees.data['params']['source'];
-        if(typeof data['referrer']=='undefined' && typeof Bloombees.data['params']['referrer']!='undefnied')
+        if(typeof data['referrer']=='undefined' && typeof Bloombees.data['params']['referrer']!='undefined')
             data['referrer'] = Bloombees.data['params']['referrer'];
-        if(typeof data['campaign']=='undefined' && typeof Bloombees.data['params']['campaign']!='undefnied')
+        if(typeof data['campaign']=='undefined' && typeof Bloombees.data['params']['campaign']!='undefined')
             data['campaign'] = Bloombees.data['params']['campaign'];
+        if(typeof Bloombees.data['params']['bbreferral']!='undefined')
+            params['bbreferral'] = Bloombees.data['params']['bbreferral'];
 
 
         Core.request.call({url:'/register/beeviral/'+Core.user.get('User_id'),params:data,method:'POST',contentType:'json'},function (response) {
@@ -540,12 +548,14 @@ Bloombees = new function () {
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpReferrer calling: /register/referrer/{User_id}');
 
         // Add tracking codes if those not exist: source, referrer, campaign
-        if(typeof data['source']=='undefined' && typeof Bloombees.data['params']['source']!='undefnied')
+        if(typeof data['source']=='undefined' && typeof Bloombees.data['params']['source']!='undefined')
             data['source'] = Bloombees.data['params']['source'];
-        if(typeof data['referrer']=='undefined' && typeof Bloombees.data['params']['referrer']!='undefnied')
+        if(typeof data['referrer']=='undefined' && typeof Bloombees.data['params']['referrer']!='undefined')
             data['referrer'] = Bloombees.data['params']['referrer'];
-        if(typeof data['campaign']=='undefined' && typeof Bloombees.data['params']['campaign']!='undefnied')
+        if(typeof data['campaign']=='undefined' && typeof Bloombees.data['params']['campaign']!='undefined')
             data['campaign'] = Bloombees.data['params']['campaign'];
+        if(typeof Bloombees.data['params']['bbreferral']!='undefined')
+            params['bbreferral'] = Bloombees.data['params']['bbreferral'];
 
 
         Core.request.call({url:'/register/referrer/'+Core.user.get('User_id'),params:data,method:'POST',contentType:'json'},function (response) {
