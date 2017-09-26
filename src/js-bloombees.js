@@ -1,6 +1,6 @@
 Bloombees = new function () {
     // Config vars
-    this.version = '1.2.9';
+    this.version = '1.2.10';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://openapi.bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
@@ -189,9 +189,9 @@ Bloombees = new function () {
     this.checkMarketingParams = function(resolve) {
         var BloombeesMktReceivedParams = {};
 
-        if(Core.url.formParams('utm_source')!=null) BloombeesMktReceivedParams['source'] = Core.url.formParams('utm_source');
-        if(Core.url.formParams('utm_medium')!=null) BloombeesMktReceivedParams['referrer'] = Core.url.formParams('utm_medium');
-        if(Core.url.formParams('utm_campaign')!=null) BloombeesMktReceivedParams['campaign'] = Core.url.formParams('utm_campaign');
+        if(Core.url.formParams('source')!=null) BloombeesMktReceivedParams['source'] = Core.url.formParams('source');
+        if(Core.url.formParams('referrer')!=null) BloombeesMktReceivedParams['referrer'] = Core.url.formParams('referrer');
+        if(Core.url.formParams('campaign')!=null) BloombeesMktReceivedParams['campaign'] = Core.url.formParams('campaign');
         if(Core.url.formParams('bbreferral')!=null) BloombeesMktReceivedParams['bbreferral'] = Core.url.formParams('bbreferral');
 
 
@@ -396,6 +396,14 @@ Bloombees = new function () {
         if(email != null && typeof email =="string")
             params['User_email'] = email;
 
+        // Add tracking codes if those not exist: source, referrer, campaign
+        if(typeof Bloombees.data['params']['source']!='undefnied')
+            params['source'] = Bloombees.data['params']['source'];
+        if(typeof Bloombees.data['params']['referrer']!='undefnied')
+            params['referrer'] = Bloombees.data['params']['referrer'];
+        if(typeof Bloombees.data['params']['campaign']!='undefnied')
+            params['campaign'] = Bloombees.data['params']['campaign'];
+
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.oauth calling: /auth/oauthservice');
         Core.request.call({url:'/register/user/oauthservice',params:params,method:'POST',contentType:'json'},function (response) {
             if(response.success) {
@@ -417,6 +425,15 @@ Bloombees = new function () {
     // Login with userpassword
     this.signUpWithUserPassword = function(data,callback) {
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUp calling: /register/user');
+
+        // Add tracking codes if those not exist: source, referrer, campaign
+        if(typeof data['source']=='undefined' && typeof Bloombees.data['params']['source']!='undefnied')
+            data['source'] = Bloombees.data['params']['source'];
+        if(typeof data['referrer']=='undefined' && typeof Bloombees.data['params']['referrer']!='undefnied')
+            data['referrer'] = Bloombees.data['params']['referrer'];
+        if(typeof data['campaign']=='undefined' && typeof Bloombees.data['params']['campaign']!='undefnied')
+            data['campaign'] = Bloombees.data['params']['campaign'];
+
         Core.request.call({url:'/register/user',params:data,method:'POST',contentType:'json'},function (response) {
             if(Core.user.isAuth()) Core.user.setAuth(false);
             if(response.success) {
@@ -447,6 +464,15 @@ Bloombees = new function () {
             Bloombees.error('Bloombees.signUpStore the user has already a store created: '+Core.user.get('Store_id')+' - '+Core.user.get('Store_uniqueId'));
         }
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpStore calling: /register/store/{User_id}');
+
+        // Add tracking codes if those not exist: source, referrer, campaign
+        if(typeof data['source']=='undefined' && typeof Bloombees.data['params']['source']!='undefnied')
+            data['source'] = Bloombees.data['params']['source'];
+        if(typeof data['referrer']=='undefined' && typeof Bloombees.data['params']['referrer']!='undefnied')
+            data['referrer'] = Bloombees.data['params']['referrer'];
+        if(typeof data['campaign']=='undefined' && typeof Bloombees.data['params']['campaign']!='undefnied')
+            data['campaign'] = Bloombees.data['params']['campaign'];
+
         Core.request.call({url:'/register/store/'+Core.user.get('User_id'),params:data,method:'POST',contentType:'json'},function (response) {
             if(response.success) {
                 Core.request.call({url:'/auth/check/dstoken?refresh',method:'GET'},function (responseds) {
@@ -474,6 +500,16 @@ Bloombees = new function () {
             Bloombees.error('Bloombees.signUpPromoter the user has already a store created: '+Core.user.get('Store_id'));
         }
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpPromoter calling: /register/beeviral/{User_id}');
+
+        // Add tracking codes if those not exist: source, referrer, campaign
+        if(typeof data['source']=='undefined' && typeof Bloombees.data['params']['source']!='undefnied')
+            data['source'] = Bloombees.data['params']['source'];
+        if(typeof data['referrer']=='undefined' && typeof Bloombees.data['params']['referrer']!='undefnied')
+            data['referrer'] = Bloombees.data['params']['referrer'];
+        if(typeof data['campaign']=='undefined' && typeof Bloombees.data['params']['campaign']!='undefnied')
+            data['campaign'] = Bloombees.data['params']['campaign'];
+
+
         Core.request.call({url:'/register/beeviral/'+Core.user.get('User_id'),params:data,method:'POST',contentType:'json'},function (response) {
             if(response.success) {
                 Core.request.call({url:'/auth/check/dstoken?refresh',method:'GET'},function (responseds) {
@@ -502,6 +538,16 @@ Bloombees = new function () {
             Bloombees.error('Bloombees.signUpReferrer the user has already a store created: '+Core.user.get('Store_id'));
         }
         if(Bloombees.debug && !Core.debug) Core.log.printDebug('Bloombees.signUpReferrer calling: /register/referrer/{User_id}');
+
+        // Add tracking codes if those not exist: source, referrer, campaign
+        if(typeof data['source']=='undefined' && typeof Bloombees.data['params']['source']!='undefnied')
+            data['source'] = Bloombees.data['params']['source'];
+        if(typeof data['referrer']=='undefined' && typeof Bloombees.data['params']['referrer']!='undefnied')
+            data['referrer'] = Bloombees.data['params']['referrer'];
+        if(typeof data['campaign']=='undefined' && typeof Bloombees.data['params']['campaign']!='undefnied')
+            data['campaign'] = Bloombees.data['params']['campaign'];
+
+
         Core.request.call({url:'/register/referrer/'+Core.user.get('User_id'),params:data,method:'POST',contentType:'json'},function (response) {
             if(response.success) {
                 Core.request.call({url:'/auth/check/dstoken?refresh',method:'GET'},function (responseds) {
