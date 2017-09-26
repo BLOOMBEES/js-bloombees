@@ -1,6 +1,6 @@
 Bloombees = new function () {
     // Config vars
-    this.version = '1.2.10';
+    this.version = '1.2.11';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://openapi.bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
