@@ -1129,7 +1129,7 @@ if (typeof define === 'function' && define.amd) {
 })(typeof self !== 'undefined' ? self : this);
 
 Core = new function () {
-    this.version = '1.2.2';
+    this.version = '1.2.3';
     this.debug = false;
     this.authActive = false;
     this.authCookieName = 'cfauth';
@@ -1341,7 +1341,7 @@ Core = new function () {
                     // if this is ret the content is corrupted and we have to delete the key
                     if(ret === null) {
                         Core.cache.delete(key);
-                        return false;
+                        return null;
                     }
                     if(typeof ret['__object'] != 'undefined') ret = ret['__object'];
                 }
@@ -2126,7 +2126,7 @@ Core = new function () {
 
 Bloombees = new function () {
     // Config vars
-    this.version = '1.2.15';
+    this.version = '1.2.16';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://openapi.bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
