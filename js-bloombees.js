@@ -1129,7 +1129,7 @@ if (typeof define === 'function' && define.amd) {
 })(typeof self !== 'undefined' ? self : this);
 
 Core = new function () {
-    this.version = '1.2.0';
+    this.version = '1.2.2';
     this.debug = false;
     this.authActive = false;
     this.authCookieName = 'cfauth';
@@ -1334,10 +1334,15 @@ Core = new function () {
             if (Core.debug) Core.log.printDebug('Core.cache.get("' + key+'")');
 
             if (Core.cache.isAvailable) {
-                key = 'CloudFrameWorkCache_'+key;
-                var ret = localStorage.getItem(key);
+                var key_cf = 'CloudFrameWorkCache_'+key;
+                var ret = localStorage.getItem(key_cf);
                 if(typeof ret != undefined && ret != null) {
                     ret = JSON.parse(LZString.decompress(ret));
+                    // if this is ret the content is corrupted and we have to delete the key
+                    if(ret === null) {
+                        Core.cache.delete(key);
+                        return false;
+                    }
                     if(typeof ret['__object'] != 'undefined') ret = ret['__object'];
                 }
                 return ret;
@@ -2121,7 +2126,7 @@ Core = new function () {
 
 Bloombees = new function () {
     // Config vars
-    this.version = '1.2.14';
+    this.version = '1.2.15';
     this.debug = false;
     this.apiUrl = Core.config.get('bloombeesApiUrl') || 'https://openapi.bloombees.com/h/api';
     this.oAuthUrl = Core.config.get('bloombeesOAuthUrl') || 'https://bloombees.com/h/service/oauth';
